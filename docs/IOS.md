@@ -52,10 +52,14 @@ Abra a pasta no Godot (*Import* → `project.godot`) e espere a importação ter
 
 ## 5. Rodar no Xcode
 
-**Primeiro no simulador** (não precisa de aparelho nem de conta paga):
+**Sem cabo, num Mac Apple Silicon (M1 ou mais novo):**
 1. Abra `build/ios/PixelWhisper.xcodeproj`.
-2. No topo escolha um *iPhone 15/16* simulado → ▶ **Run**.
-3. O simulador **não vibra** e o desempenho do blur não representa um iPhone real.
+2. No topo, no seletor de destino, escolha **My Mac (Designed for iPhone)** (em alguns Xcodes aparece como
+   *Designed for iPad*) → ▶ **Run**. O app abre numa janela, com o mouse fazendo o papel do toque.
+3. Precisa do *Team* configurado (passo 3 abaixo, "No seu iPhone"). Não vibra e o blur não representa um iPhone.
+
+**No simulador de iPhone:** em Mac Apple Silicon pode falhar no link com `Undefined symbol: _main` (veja "Erros
+conhecidos"). Se for o seu caso, use o iPhone de verdade ou a opção acima.
 
 **No seu iPhone:**
 1. Conecte por cabo e toque em *Confiar neste computador*.
@@ -81,6 +85,15 @@ Abra a pasta no Godot (*Import* → `project.godot`) e espere a importação ter
   o seu Xcode não aceita iOS 14. No Godot, *Project → Export → iOS → Application → Min iOS Version* = `15.0`
   (ou a versão mínima que a mensagem indicar) e **exporte de novo**. O Xcode só lê o que o Godot gerou, então
   mudar o número dentro do Xcode é desfeito no próximo export.
+
+- **"Undefined symbol: _main"** (ou `Undefined symbols for architecture arm64: _main`) ao compilar para o
+  **simulador**: na biblioteca do motor que o Godot 4.7.2 copia para o projeto
+  (`build/ios/PixelWhisper.xcframework`), a fatia `ios-arm64_x86_64-simulator` que examinei tinha **só código
+  x86_64**; o `_main` está lá, mas um simulador arm64 (Mac Apple Silicon) não consegue usá-lo. A fatia do aparelho
+  (`ios-arm64`) está completa. Solução: rode no **iPhone de verdade** ou em **My Mac (Designed for iPhone)**.
+  *Isto é a causa mais provável, inferida do conteúdo da biblioteca; não consegui reproduzir o link do Xcode no
+  Linux.* Se o erro aparecer num destino que não seja o simulador, ou num Mac Intel, a causa é outra: cole a
+  mensagem completa (Report navigator → build log).
 
 ## Publicar (TestFlight / App Store)
 
