@@ -71,6 +71,37 @@ def bell(freq, dur=1.0, decay=0.35, amp=1.0):
     return out
 
 
+def kalimba(freq=261.63, dur=0.9):
+    """Plucked metal tine: a clean fundamental that rings, a short inharmonic 'ping' on top."""
+    rnd = random.Random(5)
+    modes = [(1.0, 1.0, 0.42), (5.4, 0.16, 0.045), (9.7, 0.05, 0.022)]
+    out, lp = [], 0.0
+    for i in range(int(SR * dur)):
+        t = i / SR
+        s = sum(a * math.sin(2 * math.pi * freq * m * t) * math.exp(-t / d) for m, a, d in modes)
+        s *= 1 - math.exp(-t / 0.0007)
+        s += (rnd.random() * 2 - 1) * math.exp(-t / 0.0018) * 0.06  # thumb contact
+        lp += 0.7 * (s - lp)
+        out.append(lp)
+    return out
+
+
+def marimba(freq=261.63, dur=0.7):
+    """Struck wooden bar: tuned overtones at 1 : 4 : 10, quick warm decay, soft mallet thump."""
+    rnd = random.Random(9)
+    modes = [(1.0, 1.0, 0.30), (4.0, 0.34, 0.085), (9.9, 0.07, 0.03)]
+    out, lp, thump = [], 0.0, 0.0
+    for i in range(int(SR * dur)):
+        t = i / SR
+        s = sum(a * math.sin(2 * math.pi * freq * m * t) * math.exp(-t / d) for m, a, d in modes)
+        s *= 1 - math.exp(-t / 0.0012)
+        thump += 0.12 * ((rnd.random() * 2 - 1) - thump)  # low-passed noise = mallet knock
+        s += thump * math.exp(-t / 0.006) * 0.9
+        lp += 0.6 * (s - lp)
+        out.append(lp)
+    return out
+
+
 def tick():
     out, phase = [], 0.0
     for i in range(int(SR * 0.05)):
@@ -161,9 +192,10 @@ def ambient(seconds=24, sr=22050):
 def main():
     os.makedirs(OUT, exist_ok=True)
     print("Generating audio ->", os.path.normpath(OUT))
-    write_wav("pop_1.wav", pop(760, 230, seed=11))
-    write_wav("pop_2.wav", pop(660, 205, dur=0.19, decay=0.036, body=0.5, seed=22))
-    write_wav("pop_3.wav", pop(860, 260, dur=0.15, decay=0.028, body=0.25, click=0.3, seed=33))
+    # The "color symphony": one soft note per sample, recorded at C4 (261.63 Hz). The game
+    # transposes it with pitch_scale (see Feedback.note_ratio), so keep the base pitch exact.
+    write_wav("kalimba.wav", kalimba(), peak=0.8)
+    write_wav("marimba.wav", marimba(), peak=0.8)
     write_wav("tick.wav", tick(), peak=0.7)
     write_wav("wrong.wav", wrong(), peak=0.55)
     write_wav("hint.wav", hint(), peak=0.75)

@@ -5,7 +5,7 @@ extends RefCounted
 static var _toast_layer: CanvasLayer
 
 
-## Gives a Button the same squish-on-press feel as IconButton, plus a soft tick.
+## Gives a Button the same squish-on-press feel as CandyButton, plus a soft tick.
 static func press_juice(b: BaseButton) -> void:
 	var sync_pivot := func() -> void: b.pivot_offset = b.size * 0.5
 	b.resized.connect(sync_pivot)
@@ -37,13 +37,14 @@ static func toast(from: Node, text: String, seconds: float = 2.2) -> void:
 		_toast_layer.layer = 100
 		tree.root.add_child(_toast_layer)
 
-	var panel := GlassPanel.new(Glass.Style.PILL, false)
+	var panel := CandyPanel.new(AppTheme.INK, 44)
+	panel.border_width = 0
 	panel.padding = Vector4(44, 24, 44, 24)
-	panel.overrides = {"radius": 44.0}
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var label := Label.new()
 	label.text = text
 	label.add_theme_font_size_override("font_size", 36)
+	label.add_theme_color_override("font_color", Color.WHITE)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.custom_minimum_size.x = 560
@@ -52,7 +53,7 @@ static func toast(from: Node, text: String, seconds: float = 2.2) -> void:
 
 	var vp := tree.root.get_visible_rect().size
 	panel.reset_size()
-	panel.position = Vector2((vp.x - panel.size.x) * 0.5, vp.y - panel.size.y - 300.0)
+	panel.position = Vector2((vp.x - panel.size.x) * 0.5, vp.y - panel.size.y - 340.0)
 	panel.modulate.a = 0.0
 	var y := panel.position.y
 	panel.position.y = y + 40.0

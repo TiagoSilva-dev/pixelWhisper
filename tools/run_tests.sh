@@ -18,8 +18,10 @@ run() {
 "$GODOT" --headless --path . --import >/dev/null 2>&1   # registers class_names, imports assets
 run "compile check (scripts, scenes, shaders)" "$GODOT" --headless --path . --script res://tools/tests/check_project.gd
 run "level generator + quantizer"               "$GODOT" --headless --path . --script res://tools/tests/test_generator.gd
-run "audio pop (pitch range/throttle/voices)"    "$GODOT" --headless --path . --script res://tools/tests/test_audio.gd
-run "CPU benchmark"                              "$GODOT" --headless --path . --script res://tools/tests/bench_canvas.gd
+run "audio note (bend range/throttle/voices)"    "$GODOT" --headless --path . --script res://tools/tests/test_audio.gd
+run "economy, symphony, power-ups, time-lapse"   "$GODOT" --headless --path . --script res://tools/tests/test_features.gd
+run "icons (files, sizes, clean edges)"          "$GODOT" --headless --path . --script res://tools/tests/test_icons.gd
+run "CPU benchmark"                             "$GODOT" --headless --path . --script res://tools/tests/bench_canvas.gd
 if [ -z "${SKIP_GUI:-}" ]; then
   run "touch + mouse input" "$GODOT" --path . --rendering-driver opengl3 --resolution 540x960 --script res://tools/tests/test_touch.gd
 fi

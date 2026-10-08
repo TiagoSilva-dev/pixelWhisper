@@ -1,7 +1,7 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://scenes/main.gd" id="1_main"]
-[ext_resource type="Script" path="res://ui/aurora_background.gd" id="2_aurora"]
+[ext_resource type="Script" path="res://ui/paper_background.gd" id="2_paper"]
 
 [node name="Main" type="Control"]
 layout_mode = 3
@@ -21,7 +21,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-script = ExtResource("2_aurora")
+script = ExtResource("2_paper")
 
 [node name="ScreenHost" type="Control" parent="."]
 unique_name_in_owner = true

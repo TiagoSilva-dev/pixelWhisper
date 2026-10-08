@@ -1,6 +1,7 @@
 extends SceneTree
-## Visual smoke test: drives the real Main scene (home -> game -> real mouse drag -> settings ->
-## completion -> home -> settings over home) and saves a PNG of each state.
+## Visual smoke test: drives the real Main scene through every tab of the hub, a game with real
+## mouse input, the three power-ups, the time-lapse, the win flow and the dialogs, saving a PNG
+## of each state.
 ##   godot --path . --rendering-driver opengl3 --resolution 540x960 --script res://tools/tests/screenshot_tour.gd
 ## Output: user://shots/ (the path is printed).
 
@@ -51,26 +52,41 @@ func _initialize() -> void:
 
 
 func _run() -> void:
-	# fresh save so the run is reproducible
 	await process_frame
 	var gs = root.get_node("GameState")
 
 	main = load("res://scenes/Main.tscn").instantiate()
 	root.add_child(main)
-	await wait(1.2)
+	await wait(1.4)
 	await shot("10_home_fresh")
+
+	var home: Control = main.host.get_child(0)
+	home.nav._on_tapped(&"categories")
+	await shot("11_tab_categories", 0.6)
+	home.nav._on_tapped(&"diary")
+	await shot("12_tab_diary", 0.6)
+	home.nav._on_tapped(&"shop")
+	await shot("13_tab_shop", 0.6)
+	home.nav._on_tapped(&"profile")
+	await shot("14_tab_profile", 0.6)
+	home.nav._on_tapped(&"home")
+	await wait(0.3)
+	home._pages[&"home"]._bar._on_pill(&"animals")
+	await shot("15_home_animals", 0.9)
+	home._pages[&"home"]._bar._on_pill(&"anime")
+	await shot("16_home_anime_empty", 0.5)
+	home._pages[&"home"]._bar._on_pill(&"anime")   # clear the filter again
 
 	main.open_level("fox")
 	await wait(1.6)
 	var game: Control = main.host.get_child(0)
-	await shot("11_game_fit")
+	await shot("20_game_fit")
 
 	# ---- real input: drag across cells with the mouse -----------------------
 	var cv = game.canvas
 	cv.select_color(0)
 	game._select(0, false)
 	var lvl = cv.level
-	# find a horizontal run of cells of color 0, then drag along it
 	var start := Vector2i(-1, -1)
 	for y in lvl.height:
 		for x in lvl.width - 8:
@@ -104,13 +120,29 @@ func _run() -> void:
 				if lvl.cells[i] == c and (i % 5) != 0:
 					cv.paint_cell(i % lvl.width, i / lvl.width, true)
 	game._select(1, true)
-	await shot("12_game_progress", 0.8)
+	await shot("21_game_progress", 0.8)
 
-	cv.focus_cell(Vector2i(32, 28), 34.0, 0.0)
-	await shot("13_game_zoomed")
+	# ---- power-ups ----------------------------------------------------------------------
+	var coins_before: int = gs.coins
+	game._on_wand()
+	await wait(0.2)
+	await shot("22_wand_cascade", 0.05)
+	await wait(0.9)
+	print("wand: coins %d -> %d" % [coins_before, gs.coins])
+	game._on_bomb()
+	await shot("23_bomb_armed", 0.3)
+	var target := Vector2i(30, 30)
+	cv._begin_stroke(cv._cell_center_local(target))
+	await wait(0.15)
+	await shot("24_bomb_blast", 0.05)
+	await wait(0.6)
+	game._on_magnifier()
+	await shot("25_magnifier_zoom", 1.1)
 
+	cv.fit_view(false)
+	await wait(0.3)
 	game._open_settings()
-	await shot("14_settings", 0.6)
+	await shot("26_settings", 0.6)
 	game._modal.close()
 	await wait(0.5)
 
@@ -121,18 +153,62 @@ func _run() -> void:
 		for i in lvl.cell_count():
 			if lvl.cells[i] == c and cv.painted[i] == 0:
 				cv.paint_cell(i % lvl.width, i / lvl.width, true)
-	await wait(0.9)
-	await shot("15_completion_reveal", 0.1)
+	await wait(0.6)
+	await shot("30_completion_confetti", 0.1)
 	await wait(2.6)
-	await shot("16_win_overlay", 0.5)
+	await shot("31_win_overlay", 0.5)
 
-	game._modal.home_pressed.emit()
+	# ---- time-lapse -------------------------------------------------------------------------
+	game._modal.timelapse_pressed.emit()
+	await wait(2.0)
+	await shot("32_timelapse_midway", 0.1)
+	await wait(6.0)
+	await shot("33_after_timelapse", 0.8)
+
+	if is_instance_valid(game._modal):
+		game._modal.home_pressed.emit()
 	await wait(1.4)
-	await shot("17_home_with_progress", 0.4)
+	await shot("40_home_with_progress", 0.4)
 
-	# ---- settings dialog over the gallery (backdrop blur) -------------------------
-	var home: Control = main.host.get_child(0)
-	home.settings_button.pressed.emit()
-	await shot("18_settings_over_home", 0.8)
+	home = main.host.get_child(0)
+	home.nav._on_tapped(&"diary")
+	await shot("42_diary_with_progress", 0.8)
+	home.nav._on_tapped(&"profile")
+	await shot("43_profile_with_progress", 0.6)
+	home.nav._on_tapped(&"home")
+	await wait(0.3)
+	home._open_settings()
+	await shot("44_settings_over_home", 0.8)
+	home._modal.close()
+	await wait(0.5)
+
+	# ---- a picture left half-way shows up as "Continue" ---------------------------------------
+	main.open_level("parrot")
+	await wait(1.6)
+	game = main.host.get_child(0)
+	cv = game.canvas
+	lvl = cv.level
+	for c in 4:
+		cv.select_color(c)
+		for i in lvl.cell_count():
+			if lvl.cells[i] == c and (i % 3) != 0:
+				cv.paint_cell(i % lvl.width, i / lvl.width, true)
+	await wait(0.3)
+	game._go_home()
+	await wait(1.5)
+	await shot("45_home_continue_card", 0.5)
+	home = main.host.get_child(0)
+
+	# ---- the same screens in Portuguese ---------------------------------------------------
+	gs.set_setting(&"language", "pt")
+	await wait(0.4)
+	await shot("50_pt_home", 0.5)
+	home.nav._on_tapped(&"shop")
+	await shot("51_pt_shop", 0.6)
+	home.nav._on_tapped(&"categories")
+	await shot("52_pt_categories", 0.6)
+	main.open_level("moon_owl")
+	await wait(1.6)
+	await shot("53_pt_game", 0.4)
 	print("DONE")
 	quit()

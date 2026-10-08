@@ -3,21 +3,42 @@ extends RefCounted
 ## Single source of truth for the look of the game: palette, fonts and the Theme resource.
 ## Built in code so the whole visual identity can be tuned in one file and diffed in git.
 ##
+## The look is light and playful ("candy"): cream paper, white cards with a soft warm shadow,
+## saturated flat colors with a darker "lip" under every pressable thing.
+##
 ## Sizes are tuned for the 1080x1920 reference viewport (canvas_items stretch).
 
-const BG_TOP := Color("1c1635")
-const BG_BOTTOM := Color("0d0a17")
-const SURFACE := Color("241d3d")
-const SURFACE_HI := Color("322957")
-const STROKE := Color("463a73")
-const TEXT := Color("f5f0ff")
-const TEXT_DIM := Color("aaa0cd")
-const ACCENT := Color("ff7a90")
-const ACCENT_DARK := Color("cf4b66")
-const AMBER := Color("ffb36b")
-const MINT := Color("5be3c1")
-const SKY := Color("6bc4ff")
-const SHADOW := Color(0, 0, 0, 0.42)
+# --- paper & ink --------------------------------------------------------------------------
+const BG_TOP := Color("fffdf0")
+const BG_BOTTOM := Color("f8f6ef")
+const SURFACE := Color("ffffff")
+const SURFACE_DIM := Color("f4efdd")
+const STROKE := Color("eadfc2")
+const INK := Color("2b2350")
+const INK_DIM := Color("7d7699")
+const SHADOW := Color(0.36, 0.27, 0.08, 0.17)
+
+# --- candy colors (categories, buttons, cards) --------------------------------------------
+const PURPLE := Color("8b5cf0")
+const GREEN := Color("3dc15f")
+const ORANGE := Color("ff9a1f")
+const BLUE := Color("3ea6ff")
+const CYAN := Color("17cfe3")
+const PINK := Color("f0288f")
+const RED := Color("f2494b")
+const YELLOW := Color("ffc928")
+const MINT := Color("3fd6a6")
+const SKY_SOFT := Color("dcecff")
+
+## Vivid backgrounds the gallery cards cycle through (behind the pixel art).
+const CARD_BACKS: Array[Color] = [
+	Color("45c96a"), Color("74c6f5"), Color("2fd9e6"), Color("ffa133"),
+	Color("ff6fae"), Color("a98bff"), Color("ffd23f"), Color("5fd8b0"),
+]
+## Info-strip colors under the thumbnail (pink first, as in the reference).
+const CARD_STRIPS: Array[Color] = [
+	Color("e91e8c"), Color("e8384f"), Color("8e44e0"), Color("f26b1d"), Color("1fa7c9"),
+]
 
 static var _fonts: Dictionary = {}
 static var _theme: Theme
@@ -37,6 +58,10 @@ static func font(weight: int = 700) -> Font:
 	return fv
 
 
+static func lip(c: Color) -> Color:
+	return c.darkened(0.24)
+
+
 static func box(color: Color, radius: int = 28, pad: Vector4 = Vector4(0, 0, 0, 0),
 		border: int = 0, border_color: Color = Color.TRANSPARENT, shadow: int = 0) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
@@ -52,7 +77,7 @@ static func box(color: Color, radius: int = 28, pad: Vector4 = Vector4(0, 0, 0, 
 	if shadow > 0:
 		sb.shadow_size = shadow
 		sb.shadow_color = SHADOW
-		sb.shadow_offset = Vector2(0, shadow * 0.35)
+		sb.shadow_offset = Vector2(0, shadow * 0.4)
 	sb.anti_aliasing = true
 	return sb
 
@@ -69,60 +94,43 @@ static func _build() -> Theme:
 	t.default_font_size = 40
 
 	# --- Labels ---------------------------------------------------------------
-	t.set_color("font_color", "Label", TEXT)
+	t.set_color("font_color", "Label", INK)
 	t.set_font_size("font_size", "Label", 40)
-	_label_variation(t, "TitleLabel", 78, 900, TEXT)
-	_label_variation(t, "HeadingLabel", 52, 800, TEXT)
-	_label_variation(t, "BodyLabel", 40, 700, TEXT)
-	_label_variation(t, "DimLabel", 34, 600, TEXT_DIM)
-	_label_variation(t, "CaptionLabel", 28, 700, TEXT_DIM)
+	_label_variation(t, "TitleLabel", 78, 900, INK)
+	_label_variation(t, "HeadingLabel", 52, 900, INK)
+	_label_variation(t, "BodyLabel", 40, 700, INK)
+	_label_variation(t, "DimLabel", 34, 700, INK_DIM)
+	_label_variation(t, "CaptionLabel", 28, 800, INK_DIM)
 
-	# --- Buttons ----------------------------------------------------------------
-	_button_style(t, "Button", SURFACE_HI, SURFACE_HI.lightened(0.08), SURFACE_HI.darkened(0.15), TEXT)
+	# --- Buttons (dialogs) --------------------------------------------------------
+	_button_style(t, "Button", SURFACE_DIM, SURFACE_DIM.lightened(0.4), SURFACE_DIM.darkened(0.06), INK, 6, STROKE)
 	t.set_font_size("font_size", "Button", 44)
 	t.set_font("font", "Button", font(800))
 
 	t.add_type("PrimaryButton")
 	t.set_type_variation("PrimaryButton", "Button")
-	_button_style(t, "PrimaryButton", ACCENT, ACCENT.lightened(0.07), ACCENT.darkened(0.1), Color.WHITE, 8, ACCENT_DARK)
+	_button_style(t, "PrimaryButton", PINK, PINK.lightened(0.07), PINK.darkened(0.08), Color.WHITE, 8, lip(PINK))
 	t.set_font_size("font_size", "PrimaryButton", 46)
 
 	t.add_type("GhostButton")
 	t.set_type_variation("GhostButton", "Button")
-	_button_style(t, "GhostButton", Color(1, 1, 1, 0.07), Color(1, 1, 1, 0.12), Color(1, 1, 1, 0.17), Color(1, 1, 1, 0.92), 0, Color.TRANSPARENT, true)
+	_button_style(t, "GhostButton", SURFACE, Color("fffaf0"), SURFACE_DIM, INK, 6, STROKE)
 
 	t.add_type("ChipButton")
 	t.set_type_variation("ChipButton", "Button")
-	_button_style(t, "ChipButton", SURFACE_HI, SURFACE_HI.lightened(0.1), STROKE, TEXT_DIM, 0, Color.TRANSPARENT, false, Vector4(36, 16, 36, 16), 40)
+	_button_style(t, "ChipButton", SKY_SOFT, SKY_SOFT.lightened(0.3), SKY_SOFT.darkened(0.08), Color("1d5fa8"), 5,
+			SKY_SOFT.darkened(0.2), Vector4(36, 14, 36, 14), 40)
 	t.set_font_size("font_size", "ChipButton", 34)
 
-	t.add_type("ChipActiveButton")
-	t.set_type_variation("ChipActiveButton", "Button")
-	_button_style(t, "ChipActiveButton", TEXT, TEXT, TEXT.darkened(0.1), BG_BOTTOM, 0, Color.TRANSPARENT, false, Vector4(36, 16, 36, 16), 40)
-	t.set_font_size("font_size", "ChipActiveButton", 34)
-
-	# --- Panels -----------------------------------------------------------------
-	t.add_type("PalettePanel")
-	t.set_type_variation("PalettePanel", "PanelContainer")
-	var pp := box(SURFACE, 0, Vector4(0, 0, 0, 0), 0, Color.TRANSPARENT, 40)
-	pp.corner_radius_top_left = 52
-	pp.corner_radius_top_right = 52
-	pp.shadow_offset = Vector2(0, -8)
-	t.set_stylebox("panel", "PalettePanel", pp)
-
-	# --- Progress bar -------------------------------------------------------------
-	t.set_stylebox("background", "ProgressBar", box(Color(1, 1, 1, 0.1), 12))
-	t.set_stylebox("fill", "ProgressBar", box(ACCENT, 12))
-
-	# --- Line edit ------------------------------------------------------------------
-	var le := box(SURFACE_HI, 32, Vector4(36, 28, 36, 28), 3, STROKE)
+	# --- Line edit (search box) -------------------------------------------------------
+	var le := box(SURFACE, 44, Vector4(40, 22, 40, 22), 4, STROKE)
 	t.set_stylebox("normal", "LineEdit", le)
-	t.set_stylebox("focus", "LineEdit", box(SURFACE_HI, 32, Vector4(36, 28, 36, 28), 3, ACCENT))
+	t.set_stylebox("focus", "LineEdit", box(SURFACE, 44, Vector4(40, 22, 40, 22), 4, PURPLE))
 	t.set_stylebox("read_only", "LineEdit", le)
-	t.set_color("font_color", "LineEdit", TEXT)
-	t.set_color("font_placeholder_color", "LineEdit", TEXT_DIM.darkened(0.25))
-	t.set_color("caret_color", "LineEdit", ACCENT)
-	t.set_color("selection_color", "LineEdit", Color(ACCENT, 0.4))
+	t.set_color("font_color", "LineEdit", INK)
+	t.set_color("font_placeholder_color", "LineEdit", INK_DIM.lightened(0.2))
+	t.set_color("caret_color", "LineEdit", PURPLE)
+	t.set_color("selection_color", "LineEdit", Color(PURPLE, 0.3))
 	t.set_font_size("font_size", "LineEdit", 40)
 
 	# Scrollbars are hidden everywhere (touch scrolling); keep them invisible if shown.
@@ -141,27 +149,25 @@ static func _label_variation(t: Theme, type_name: String, size: int, weight: int
 
 
 static func _button_style(t: Theme, type_name: String, normal: Color, hover: Color, pressed: Color,
-		font_color: Color, lip: int = 0, lip_color: Color = Color.TRANSPARENT,
-		outline: bool = false, pad: Vector4 = Vector4(48, 26, 48, 26), radius: int = 36) -> void:
+		font_color: Color, lip_px: int = 0, lip_color: Color = Color.TRANSPARENT,
+		pad: Vector4 = Vector4(48, 24, 48, 24), radius: int = 40) -> void:
 	var mk := func(c: Color) -> StyleBoxFlat:
 		var sb := box(c, radius, pad)
-		if lip > 0:
+		if lip_px > 0:
 			# A darker "lip" under the button gives a tactile, pressable look.
-			sb.border_width_bottom = lip
+			sb.border_width_bottom = lip_px
 			sb.border_color = lip_color
-			sb.content_margin_bottom = pad.w + 0.0
-		if outline:
-			sb.set_border_width_all(2)
-			sb.border_color = Color(1, 1, 1, 0.28)
+			sb.content_margin_bottom = pad.w
 		return sb
 	t.set_stylebox("normal", type_name, mk.call(normal))
 	t.set_stylebox("hover", type_name, mk.call(hover))
 	var pr: StyleBoxFlat = mk.call(pressed)
-	if lip > 0:
+	if lip_px > 0:
 		pr.border_width_bottom = 2
+		pr.content_margin_top = pad.y + (lip_px - 2)
 	t.set_stylebox("pressed", type_name, pr)
 	t.set_stylebox("focus", type_name, StyleBoxEmpty.new())
-	t.set_stylebox("disabled", type_name, mk.call(normal.darkened(0.35)))
+	t.set_stylebox("disabled", type_name, mk.call(normal.darkened(0.15)))
 	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_hover_pressed_color"]:
 		t.set_color(c, type_name, font_color)
-	t.set_color("font_disabled_color", type_name, font_color.darkened(0.5))
+	t.set_color("font_disabled_color", type_name, font_color.darkened(0.3))

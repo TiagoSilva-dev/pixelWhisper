@@ -2,25 +2,37 @@ extends Node
 ## Audio + haptics. Everything the player can feel or hear goes through here, so the
 ## "ASMR" tuning lives in one place and respects the Sound / Haptics settings.
 ##
+## The color symphony: every paint plays a soft Kalimba or Marimba note. The note comes from the
+## color's palette index (a pentatonic scale over two octaves, so any two colors sound good
+## together) and each pixel then gets its own small random bend, `pitch_scale` x 0.95..1.15.
+##
 ## Why a pool: when one AudioStreamPlayer changes pitch_scale, every voice it is still
-## playing changes too. Dragging a finger across the canvas fires a pop every ~30 ms,
-## so each pop gets its own player (round-robin) and keeps its own random pitch.
+## playing changes too. Dragging a finger across the canvas fires a note every ~30 ms,
+## so each note gets its own player (round-robin) and keeps its own pitch.
 
-const POP_PITCH_MIN := 0.9
-const POP_PITCH_MAX := 1.2
-const POP_MIN_PITCH_GAP := 0.045  ## Re-roll if the new pitch is too close to the last one.
+signal vibrated(ms: int)   ## every time a vibration is requested (the tests listen to this)
+
+const JITTER_MIN := 0.95
+const JITTER_MAX := 1.15
+const MIN_JITTER_GAP := 0.03      ## Re-roll if the bend is too close to the previous pixel's.
 const POP_MIN_INTERVAL_MS := 26   ## Dense drags can paint many cells per frame; don't machine-gun.
 const HAPTIC_MIN_INTERVAL_MS := 35
+const PAINT_HAPTIC_MS := 25
+const COLOR_DONE_HAPTIC_MS := 100
 const POP_VOLUME_DB := -7.0
+## Semitones above the C4 the samples are recorded at: major pentatonic, two octaves
+## (highest note A5 x 1.15 stays under pitch_scale 4).
+const NOTES: Array[int] = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21]
 const POOL_SIZE := 10
 
 const SFX_BUS := &"SFX"
 const MUSIC_BUS := &"Music"
 
-var _pops: Array[AudioStream] = []
+var _pops: Array[AudioStream] = []   ## the instruments (Kalimba, Marimba)
 var _pool: Array[AudioStreamPlayer] = []
 var _next_player := 0
 var _last_pitch := 1.0
+var _last_jitter := 1.0
 var _last_pop_ms := 0
 var _last_haptic_ms := 0
 var _streams: Dictionary = {}  # name -> AudioStream
@@ -32,7 +44,7 @@ func _ready() -> void:
 	_ensure_bus(SFX_BUS)
 	_ensure_bus(MUSIC_BUS)
 
-	for n in ["pop_1", "pop_2", "pop_3"]:
+	for n in ["kalimba", "marimba"]:
 		var s := _load_stream(n)
 		if s:
 			_pops.append(s)
@@ -87,10 +99,16 @@ func _apply_settings() -> void:
 			_music.stop()
 
 
-# -- the ASMR pop ---------------------------------------------------------------
+# -- the color symphony ----------------------------------------------------------
+
+## Pitch ratio of the note that belongs to palette index `color_index` (0-based).
+static func note_ratio(color_index: int) -> float:
+	var semis: int = NOTES[posmod(color_index, NOTES.size())]
+	return pow(2.0, semis / 12.0)
+
 
 ## Called once per correctly painted cell. Returns true if a sound actually played.
-func pop() -> bool:
+func pop(color_index: int = 0) -> bool:
 	if not GameState.sound_on or _pops.is_empty():
 		return false
 	var now := Time.get_ticks_msec()
@@ -98,16 +116,17 @@ func pop() -> bool:
 		return false
 	_last_pop_ms = now
 
-	var pitch := randf_range(POP_PITCH_MIN, POP_PITCH_MAX)
-	if absf(pitch - _last_pitch) < POP_MIN_PITCH_GAP:
-		# Nudge away from the previous pitch (staying inside the range) so a drag
+	var jitter := randf_range(JITTER_MIN, JITTER_MAX)
+	if absf(jitter - _last_jitter) < MIN_JITTER_GAP:
+		# Nudge away from the previous bend (staying inside the range) so a drag
 		# never plays the same tone twice in a row.
-		pitch = POP_PITCH_MIN + fposmod(pitch - POP_PITCH_MIN + 0.1, POP_PITCH_MAX - POP_PITCH_MIN)
-	_last_pitch = pitch
+		jitter = JITTER_MIN + fposmod(jitter - JITTER_MIN + (JITTER_MAX - JITTER_MIN) * 0.5, JITTER_MAX - JITTER_MIN)
+	_last_jitter = jitter
+	_last_pitch = note_ratio(color_index) * jitter
 
 	var p := _acquire()
 	p.stream = _pops[randi() % _pops.size()]
-	p.pitch_scale = pitch
+	p.pitch_scale = _last_pitch
 	p.volume_db = POP_VOLUME_DB + randf_range(-2.5, 1.0)
 	p.play()
 	return true
@@ -139,7 +158,7 @@ func wrong() -> void:
 
 func color_done() -> void:
 	play(&"color_done", -5.0)
-	haptic_pattern([40, 30, 60])
+	vibrate(COLOR_DONE_HAPTIC_MS)
 
 
 func hint() -> void:
@@ -161,14 +180,23 @@ func win() -> void:
 
 ## Single short tick. Throttled: vibration motors can't keep up with a pop every 30 ms
 ## and queueing pulses makes the phone buzz long after the finger stops.
-func haptic(ms: int = 30) -> void:
+func haptic(ms: int = PAINT_HAPTIC_MS) -> void:
 	if not GameState.haptics_on:
 		return
 	var now := Time.get_ticks_msec()
 	if now - _last_haptic_ms < HAPTIC_MIN_INTERVAL_MS:
 		return
-	_last_haptic_ms = now
+	vibrate(ms)
+
+
+## The one place that talks to the vibration motor. Not throttled: used for the longer
+## "color finished" pulse, which lands right after a paint tick and must not be swallowed.
+func vibrate(ms: int) -> void:
+	if not GameState.haptics_on:
+		return
+	_last_haptic_ms = Time.get_ticks_msec()
 	Input.vibrate_handheld(ms)
+	vibrated.emit(ms)
 
 
 ## Alternating [on, off, on, ...] durations in ms.
@@ -178,7 +206,7 @@ func haptic_pattern(pattern: Array) -> void:
 	var t := 0
 	for i in pattern.size():
 		if i % 2 == 0:
-			get_tree().create_timer(t / 1000.0).timeout.connect(Input.vibrate_handheld.bind(int(pattern[i])))
+			get_tree().create_timer(t / 1000.0).timeout.connect(vibrate.bind(int(pattern[i])))
 		t += int(pattern[i])
 
 

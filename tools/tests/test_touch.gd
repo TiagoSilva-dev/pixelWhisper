@@ -190,7 +190,7 @@ func _run() -> void:
 			"reported=%d painted_delta=%d" % [got[0], cv.painted_total - before])
 
 	# 5) a press on the floating wand button must not paint the cell underneath.
-	#    No wands left, and the color of the cell under the button is selected: only a leak
+	#    No coins left, and the color of the cell under the button is selected: only a leak
 	#    of the touch into the canvas could paint it.
 	# Camera placed so the bottom-left of the image sits right under the wand button.
 	cv.focus_cell(Vector2i(20, 30), 30.0, 0.0)  # mid-image: the wand button then covers real cells
@@ -199,7 +199,7 @@ func _run() -> void:
 	var wc: Vector2 = wand.global_position + wand.size * 0.5
 	var under: Vector2i = cv._cell_at(wc - cv.global_position)
 	var under_idx: int = lvl.cells[under.y * lvl.width + under.x]
-	root.get_node("GameState").wands = 0
+	root.get_node("GameState").coins = 0
 	game._select(under_idx, false)
 	var cell_i: int = under.y * lvl.width + under.x
 	var was_painted: int = cv.painted[cell_i]

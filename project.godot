@@ -16,7 +16,7 @@ run/main_scene="res://scenes/Main.tscn"
 run/max_fps=60
 config/quit_on_go_back=false
 config/features=PackedStringArray("4.7", "GL Compatibility")
-boot_splash/bg_color=Color(0.082, 0.071, 0.122, 1)
+boot_splash/bg_color=Color(0.973, 0.965, 0.937, 1)
 boot_splash/show_image=false
 config/icon="res://icon.svg"
 
@@ -59,4 +59,4 @@ renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 textures/canvas_textures/default_texture_filter=0
 textures/vram_compression/import_etc2_astc=true
-environment/defaults/default_clear_color=Color(0.082, 0.071, 0.122, 1)
+environment/defaults/default_clear_color=Color(0.973, 0.965, 0.937, 1)

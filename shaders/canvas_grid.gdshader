@@ -20,7 +20,7 @@ uniform float show_numbers = 1.0;
 uniform float show_grid = 1.0;
 uniform float reveal = 0.0;          // 0..1: grid dissolves when the picture is complete
 uniform float shine = -1.0;          // diagonal highlight sweep position (-1 = off)
-uniform vec3 empty_color : source_color = vec3(0.09, 0.08, 0.13);
+uniform vec3 empty_color : source_color = vec3(1.0, 0.996, 0.98);
 
 const float GLYPH_PX = 0.072;        // cell fraction per glyph pixel -> digits are ~50% of the cell
 

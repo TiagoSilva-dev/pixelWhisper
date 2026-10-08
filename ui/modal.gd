@@ -1,19 +1,16 @@
 class_name Modal
 extends Control
-## Base for dialogs: the scene behind blurs and dims, and a frosted-glass card floats in.
+## Base for dialogs: the scene behind dims and a white candy card pops in.
 ## Subclasses fill `content` (a VBoxContainer inside the card) and may set
-## `dismiss_on_outside_tap`. With "Glass effects" off the backdrop is a plain dim.
-
-const BACKDROP_SHADER := preload("res://shaders/backdrop_blur.gdshader")
+## `dismiss_on_outside_tap`.
 
 signal closed
 
 var dismiss_on_outside_tap: bool = true
-var card: GlassPanel
+var card: CandyPanel
 var content: VBoxContainer
 
 var _backdrop: ColorRect
-var _backdrop_mat: ShaderMaterial
 var _closing: bool = false
 
 
@@ -21,21 +18,10 @@ func _init() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 
-	if Glass.effects_on():
-		var copy := BackBufferCopy.new()
-		copy.copy_mode = BackBufferCopy.COPY_MODE_VIEWPORT
-		add_child(copy)
-
 	_backdrop = ColorRect.new()
 	_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	if Glass.effects_on():
-		_backdrop_mat = ShaderMaterial.new()
-		_backdrop_mat.shader = BACKDROP_SHADER
-		_backdrop_mat.set_shader_parameter("amount", 0.0)
-		_backdrop.material = _backdrop_mat
-	else:
-		_backdrop.color = Color(0.03, 0.02, 0.09, 0.0)
+	_backdrop.color = Color(0.17, 0.12, 0.31, 0.0)
 	add_child(_backdrop)
 
 	var center := CenterContainer.new()
@@ -43,8 +29,9 @@ func _init() -> void:
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(center)
 
-	card = GlassPanel.new(Glass.Style.MODAL, true)
+	card = CandyPanel.new(AppTheme.SURFACE, 56)
 	card.padding = Vector4(44, 40, 44, 44)
+	card.shadow = 40
 	card.custom_minimum_size.x = 900.0
 	center.add_child(card)
 
@@ -55,18 +42,14 @@ func _init() -> void:
 
 func _ready() -> void:
 	_set_backdrop(0.0)
-	create_tween().tween_method(_set_backdrop, 0.0, 1.0, 0.32).set_trans(Tween.TRANS_SINE)
+	create_tween().tween_method(_set_backdrop, 0.0, 1.0, 0.28).set_trans(Tween.TRANS_SINE)
 	await get_tree().process_frame
 	if is_instance_valid(card):
 		UiFx.pop_in(card, 0.0, 0.42)
-		card.play_sheen(1.1)
 
 
 func _set_backdrop(v: float) -> void:
-	if _backdrop_mat:
-		_backdrop_mat.set_shader_parameter("amount", v)
-	else:
-		_backdrop.color.a = 0.74 * v
+	_backdrop.color.a = 0.58 * v
 
 
 func close() -> void:
@@ -106,6 +89,7 @@ func add_header(title_text: String) -> void:
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(title)
-	var x := IconButton.new(IconButton.Icon.CLOSE, 96.0)
+	var x := CandyButton.new(Icons.Kind.CLOSE, "", AppTheme.RED)
+	x.custom_minimum_size = Vector2(96, 96)
 	x.pressed.connect(close)
 	row.add_child(x)

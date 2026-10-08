@@ -17,6 +17,11 @@ signal progress_changed(painted: int, total: int)
 signal level_completed
 signal wrong_tapped(color_index: int)
 signal fit_state_changed(is_fit: bool)
+## The armed ink bomb was dropped on a cell; `painted` is how many cells it queued (0 = nothing
+## to paint there, the bomb stays armed).
+signal bomb_dropped(cell: Vector2i, painted: int)
+signal armed_changed(tool: StringName)
+signal timelapse_finished
 
 const GRID_SHADER := preload("res://shaders/canvas_grid.gdshader")
 const MAX_CELL_PX := 96.0
@@ -27,6 +32,10 @@ const TAP_ARM_MS := 70      ## A lone finger waits this long before painting, so
 const TAP_SLOP := 8.0       ## finger of a two-finger gesture doesn't leave a stray dot.
 const MAX_BURSTS_PER_FRAME := 5
 const HINT_SECONDS := 4.0
+const BOMB_RADIUS := 2            ## 2 -> a 5x5 square
+const WAND_SECONDS := 0.55        ## the wand's paint cascade lasts this long, however many cells
+const MAGNIFY_ZOOM := 54.0
+const TIMELAPSE_SPEED := 10.0
 
 ## Controls floating over the canvas (tool buttons). Presses that start on one of them
 ## must not paint the cell underneath.
@@ -38,6 +47,8 @@ var remaining: PackedInt32Array = PackedInt32Array()
 var painted_total: int = 0
 var selected: int = -1: set = select_color
 var input_enabled: bool = true: set = _set_input_enabled
+var armed_tool: StringName = &"": set = _set_armed_tool
+var recorder: TimelapseRecorder = TimelapseRecorder.new()   ## every painted cell, in order
 
 ## screen position (in this control) = view_offset + cell * zoom
 var zoom: float = 16.0
@@ -81,6 +92,22 @@ var _hint_cell: Vector2i = Vector2i(-1, -1)
 var _hint_age: float = 0.0
 var _bursts_this_frame: int = 0
 
+# cells waiting to be painted by a power-up (wand / bomb), released a few per frame
+var _queue: PackedInt32Array = PackedInt32Array()
+var _queue_pos: int = 0
+var _queue_rate: float = 60.0
+var _queue_budget: float = 0.0
+var _blast_cell: Vector2i = Vector2i(-1, -1)
+var _blast_age: float = 99.0
+
+# time-lapse playback
+var _tl_playing: bool = false
+var _tl_times: PackedFloat32Array = PackedFloat32Array()
+var _tl_next: int = 0
+var _tl_clock: float = 0.0
+var _tl_last_sound: int = 0
+var _tl_prev_input: bool = true
+
 
 class _Overlay extends Control:
 	var view: CanvasView
@@ -102,11 +129,13 @@ func _ready() -> void:
 	_frame = Panel.new()
 	_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.09, 0.08, 0.13)
-	sb.set_corner_radius_all(10)
-	sb.shadow_color = Color(0, 0, 0, 0.5)
-	sb.shadow_size = 30
-	sb.shadow_offset = Vector2(0, 10)
+	sb.bg_color = Color("fffefa")
+	sb.set_corner_radius_all(12)
+	sb.set_border_width_all(4)
+	sb.border_color = AppTheme.STROKE
+	sb.shadow_color = AppTheme.SHADOW
+	sb.shadow_size = 26
+	sb.shadow_offset = Vector2(0, 8)
 	_frame.add_theme_stylebox_override("panel", sb)
 	add_child(_frame)
 
@@ -137,7 +166,7 @@ func _ready() -> void:
 # Level lifecycle
 # ---------------------------------------------------------------------------------
 
-func set_level(lvl: PixelLevel, saved_painted: PackedByteArray) -> void:
+func set_level(lvl: PixelLevel, saved_painted: PackedByteArray, saved_timelapse: PackedByteArray = PackedByteArray()) -> void:
 	level = lvl
 	painted = saved_painted.duplicate()
 	painted.resize(lvl.cell_count())
@@ -146,6 +175,10 @@ func set_level(lvl: PixelLevel, saved_painted: PackedByteArray) -> void:
 	_pop_cells.clear()
 	_pop_age.clear()
 	_hint_cell = Vector2i(-1, -1)
+	_queue = PackedInt32Array()
+	_queue_pos = 0
+	_tl_playing = false
+	armed_tool = &""
 
 	# Cells that were saved as painted but are not paintable (should not happen) are dropped.
 	for i in lvl.cell_count():
@@ -155,6 +188,9 @@ func set_level(lvl: PixelLevel, saved_painted: PackedByteArray) -> void:
 		elif painted[i] != 0:
 			remaining[idx] -= 1
 			painted_total += 1
+
+	recorder = TimelapseRecorder.from_bytes(saved_timelapse)
+	recorder.reconcile(painted)
 
 	_target_tex = ImageTexture.create_from_image(lvl.build_target_image())
 	_state_img = Image.create(lvl.width, lvl.height, false, Image.FORMAT_RGBA8)
@@ -239,7 +275,17 @@ func paint_cell(x: int, y: int, silent: bool = false) -> bool:
 	var idx := level.cells[i]
 	if idx == PixelLevel.EMPTY or painted[i] != 0 or idx != selected:
 		return false
+	_paint_index(i, silent)
+	return true
 
+
+## Paints cell `i` with ITS OWN color (selected or not). The caller guarantees it is paintable
+## and still unpainted. Everything that changes the picture goes through here: sound, haptics,
+## sparks, the time-lapse history, signals.
+func _paint_index(i: int, silent: bool = false) -> void:
+	var idx := level.cells[i]
+	var x := i % level.width
+	var y := i / level.width
 	painted[i] = 1
 	remaining[idx] -= 1
 	painted_total += 1
@@ -247,10 +293,12 @@ func paint_cell(x: int, y: int, silent: bool = false) -> bool:
 	_pop_cells.append(i)
 	_pop_age.append(0.0)
 	_state_dirty = true
+	recorder.record(i)
+	GameState.note_activity()
 
 	if not silent:
-		Feedback.pop()
-		Feedback.haptic(30)
+		Feedback.pop(idx)
+		Feedback.haptic()
 		if _bursts_this_frame < MAX_BURSTS_PER_FRAME:
 			_bursts_this_frame += 1
 			_fx.burst(_cell_center_local(Vector2i(x, y)), level.palette[idx], clampf(zoom / 22.0, 0.55, 2.2))
@@ -264,27 +312,127 @@ func paint_cell(x: int, y: int, silent: bool = false) -> bool:
 		color_completed.emit(idx)
 	if painted_total >= level.total_paintable:
 		level_completed.emit()
-	return true
 
 
-## Magic wand: paints up to `count` random cells of the selected color with a short
-## staggered cascade. Returns how many cells were queued.
-func use_wand(count: int = 40) -> int:
+# ---------------------------------------------------------------------------------
+# Power-ups
+# ---------------------------------------------------------------------------------
+
+## Magic wand: paints every still-unpainted cell of the selected color that is on screen right
+## now (zoom out first to cover the whole picture). The cells appear in a quick cascade.
+## Returns how many cells were queued.
+func use_wand() -> int:
 	if level == null or selected < 0:
 		return 0
-	var pool: Array[int] = []
+	var top_left := _cell_at(Vector2.ZERO)
+	var bottom_right := _cell_at(size)
+	var x0 := clampi(top_left.x, 0, level.width - 1)
+	var y0 := clampi(top_left.y, 0, level.height - 1)
+	var x1 := clampi(bottom_right.x, 0, level.width - 1)
+	var y1 := clampi(bottom_right.y, 0, level.height - 1)
+	var cells: Array[int] = []
+	for y in range(y0, y1 + 1):
+		for x in range(x0, x1 + 1):
+			var i := level.index_of(x, y)
+			if level.cells[i] == selected and painted[i] == 0:
+				cells.append(i)
+	cells.shuffle()
+	_enqueue(cells, WAND_SECONDS)
+	return cells.size()
+
+
+## Ink bomb: paints every unpainted cell of the (2 x BOMB_RADIUS + 1)-square around `center`,
+## each in its own color, spreading outwards from the middle. Returns how many cells it queued.
+func apply_bomb(center: Vector2i) -> int:
+	if level == null or not level.in_bounds(center.x, center.y):
+		return 0
+	var cells: Array[int] = []
+	for dy in range(-BOMB_RADIUS, BOMB_RADIUS + 1):
+		for dx in range(-BOMB_RADIUS, BOMB_RADIUS + 1):
+			var x := center.x + dx
+			var y := center.y + dy
+			if not level.in_bounds(x, y):
+				continue
+			var i := level.index_of(x, y)
+			if level.cells[i] != PixelLevel.EMPTY and painted[i] == 0:
+				cells.append(i)
+	cells.sort_custom(func(a: int, b: int) -> bool:
+		var da := Vector2i(a % level.width, a / level.width) - center
+		var db := Vector2i(b % level.width, b / level.width) - center
+		return da.length_squared() < db.length_squared())
+	if not cells.is_empty():
+		_blast_cell = center
+		_blast_age = 0.0
+	_enqueue(cells, 0.28)
+	return cells.size()
+
+
+## Magnifier: finds a cell that is still missing (preferably of the selected color, nearest to
+## the middle of the screen), glides the camera onto it with a deep zoom and rings it.
+## Returns that cell's palette index, or -1 if the picture is complete.
+func magnify() -> int:
+	if level == null:
+		return -1
+	var centre_cell := (size * 0.5 - view_offset) / zoom
+	var want_selected := selected >= 0 and remaining[selected] > 0
+	var best := -1
+	var best_d := INF
 	for i in level.cell_count():
-		if level.cells[i] == selected and painted[i] == 0:
-			pool.append(i)
-	pool.shuffle()
-	var n := mini(count, pool.size())
-	for k in n:
-		var cell: int = pool[k]
-		var color_at_queue := selected
-		get_tree().create_timer(k * 0.028).timeout.connect(func() -> void:
-			if level != null and selected == color_at_queue:
-				paint_cell(cell % level.width, cell / level.width))
-	return n
+		var idx := level.cells[i]
+		if idx == PixelLevel.EMPTY or painted[i] != 0:
+			continue
+		if want_selected and idx != selected:
+			continue
+		var d := Vector2(i % level.width + 0.5, i / level.width + 0.5).distance_squared_to(centre_cell)
+		if d < best_d:
+			best_d = d
+			best = i
+	if best < 0:
+		return -1
+	_hint_cell = Vector2i(best % level.width, best / level.width)
+	_hint_age = 0.0
+	focus_cell(_hint_cell, MAGNIFY_ZOOM, 0.9)
+	return level.cells[best]
+
+
+func _enqueue(cells: Array[int], seconds: float) -> void:
+	if cells.is_empty():
+		return
+	# Whatever is still waiting from an earlier power-up goes first, so nothing is lost.
+	var merged := _queue.slice(_queue_pos)
+	for c in cells:
+		merged.append(c)
+	_queue = merged
+	_queue_pos = 0
+	_queue_rate = maxf(60.0, merged.size() / seconds)
+	_queue_budget = 0.0
+
+
+func _release_queue(delta: float) -> void:
+	if _queue_pos >= _queue.size():
+		return
+	_queue_budget += _queue_rate * delta
+	while _queue_budget >= 1.0 and _queue_pos < _queue.size():
+		_queue_budget -= 1.0
+		var i := _queue[_queue_pos]
+		_queue_pos += 1
+		if painted[i] == 0:
+			_paint_index(i)
+	if _queue_pos >= _queue.size():
+		_queue = PackedInt32Array()
+		_queue_pos = 0
+
+
+func pending_cells() -> int:
+	return _queue.size() - _queue_pos
+
+
+## Arms (or, with &"", disarms) a tool that needs a tap on the canvas: the ink bomb.
+func _set_armed_tool(tool: StringName) -> void:
+	if tool == armed_tool:
+		return
+	armed_tool = tool
+	armed_changed.emit(tool)
 
 
 func _paint_line(from: Vector2i, to: Vector2i) -> void:
@@ -310,6 +458,14 @@ func _paint_line(from: Vector2i, to: Vector2i) -> void:
 
 
 func _begin_stroke(p: Vector2) -> void:
+	if armed_tool == &"bomb":
+		var cell := _cell_at(p)
+		if level != null and level.in_bounds(cell.x, cell.y):
+			var n := apply_bomb(cell)
+			if n > 0:
+				armed_tool = &""
+			bomb_dropped.emit(cell, n)
+		return
 	_stroke_active = true
 	_stroke_last = Vector2i(-1, -1)
 	_stroke_wrong_sent = false
@@ -480,17 +636,100 @@ func _cell_center_local(cell: Vector2i) -> Vector2:
 # Completion
 # ---------------------------------------------------------------------------------
 
-## Plays the "picture finished" reveal (grid dissolves, shine sweep, confetti).
+## Plays the "picture finished" reveal (grid dissolves, shine sweep). The confetti rains from
+## GameScreen's ConfettiOverlay, over the whole screen.
 func play_completion() -> void:
 	input_enabled = false
 	fit_view(true)
 	var t := create_tween().set_parallel(true)
 	t.tween_method(func(v: float) -> void: _material.set_shader_parameter("reveal", v), 0.0, 1.0, 0.9)
 	t.tween_method(func(v: float) -> void: _material.set_shader_parameter("shine", v), -0.2, 1.4, 1.5).set_delay(0.25)
-	for k in 3:
-		get_tree().create_timer(0.15 + k * 0.28).timeout.connect(func() -> void:
-			_fx.confetti(Vector2(size.x * (0.2 + 0.3 * k), -10.0), size.x * 0.5))
 	await t.finished
+
+
+# ---------------------------------------------------------------------------------
+# Time-lapse
+# ---------------------------------------------------------------------------------
+
+## Replays the picture being painted, from the blank canvas to the last cell, at `speed` x real
+## time (pauses were already squeezed when recording; the film is kept between 3 and 40 s).
+## Only the state texture is rewound: `painted`, `remaining` and the saved progress are never
+## touched, so leaving mid-replay (stop_timelapse) loses nothing. Resolves when it is over.
+func play_timelapse(speed: float = TIMELAPSE_SPEED) -> void:
+	if level == null or recorder.is_empty() or _tl_playing:
+		return
+	while _queue_pos < _queue.size():   # let a running wand/bomb finish first: it belongs to the record
+		var i := _queue[_queue_pos]
+		_queue_pos += 1
+		if painted[i] == 0:
+			_paint_index(i, true)
+	_queue = PackedInt32Array()
+	_queue_pos = 0
+
+	_tl_prev_input = input_enabled
+	input_enabled = false
+	armed_tool = &""
+	_hint_cell = Vector2i(-1, -1)
+	fit_view(true)
+	_material.set_shader_parameter("reveal", 0.0)
+	_material.set_shader_parameter("shine", -1.0)
+	_pop_cells.clear()
+	_pop_age.clear()
+	for i in level.cell_count():
+		if painted[i] != 0:
+			_state_img.set_pixel(i % level.width, i / level.width, Color8(level.cells[i], 0, 0, 255))
+	_state_dirty = true
+
+	_tl_times = recorder.timeline(speed)
+	_tl_next = 0
+	_tl_clock = -0.5        # a beat of empty canvas first
+	_tl_last_sound = 0
+	_tl_playing = true
+	await timelapse_finished
+
+
+func is_playing_timelapse() -> bool:
+	return _tl_playing
+
+
+## Ends the replay right now (the picture snaps back to its real state).
+func stop_timelapse() -> void:
+	if _tl_playing:
+		_finish_timelapse()
+
+
+func _step_timelapse(delta: float) -> void:
+	_tl_clock += delta
+	while _tl_next < _tl_times.size() and _tl_times[_tl_next] <= _tl_clock:
+		var i := recorder.cells[_tl_next]
+		var idx := level.cells[i]
+		_state_img.set_pixel(i % level.width, i / level.width, Color8(idx, 255, 255, 255))
+		_pop_cells.append(i)
+		_pop_age.append(0.0)
+		_state_dirty = true
+		var now := Time.get_ticks_msec()
+		if now - _tl_last_sound >= 55:
+			_tl_last_sound = now
+			Feedback.pop(idx)
+		if _bursts_this_frame < MAX_BURSTS_PER_FRAME:
+			_bursts_this_frame += 1
+			_fx.burst(_cell_center_local(Vector2i(i % level.width, i / level.width)), level.palette[idx], clampf(zoom / 22.0, 0.55, 2.2))
+		_tl_next += 1
+	if _tl_next >= _tl_times.size() and _tl_clock > _tl_times[_tl_times.size() - 1] + POP_SECONDS + 0.5:
+		_finish_timelapse()
+
+
+func _finish_timelapse() -> void:
+	_tl_playing = false
+	_pop_cells.clear()
+	_pop_age.clear()
+	for i in level.cell_count():
+		if level.cells[i] != PixelLevel.EMPTY:
+			_state_img.set_pixel(i % level.width, i / level.width, Color8(level.cells[i], 255 if painted[i] != 0 else 0, 0, 255))
+	_state_dirty = true
+	_material.set_shader_parameter("reveal", 1.0 if is_complete() else 0.0)
+	input_enabled = _tl_prev_input
+	timelapse_finished.emit()
 
 
 # ---------------------------------------------------------------------------------
@@ -501,6 +740,13 @@ func _process(delta: float) -> void:
 	_bursts_this_frame = 0
 	if level == null:
 		return
+
+	_release_queue(delta)
+	if _tl_playing:
+		_step_timelapse(delta)
+	if _blast_age < 1.0:
+		_blast_age += delta / 0.5
+		_overlay.queue_redraw()
 
 	# Arm a waiting single finger once it has been down long enough.
 	if _pending_touch != -1 and Time.get_ticks_msec() - _pending_since_ms >= TAP_ARM_MS:
@@ -545,6 +791,12 @@ func _process(delta: float) -> void:
 
 
 func _draw_overlay(c: Control) -> void:
+	if _blast_age < 1.0:
+		var centre := _cell_center_local(_blast_cell)
+		var k := 1.0 - pow(1.0 - _blast_age, 3.0)
+		var radius := zoom * (BOMB_RADIUS + 0.5) * (0.4 + 1.1 * k)
+		c.draw_arc(centre, radius, 0.0, TAU, 48, Color(1.0, 0.7, 0.2, 0.9 * (1.0 - _blast_age)), maxf(3.0, zoom * 0.22 * (1.0 - _blast_age)), true)
+		c.draw_circle(centre, radius * 0.7, Color(1.0, 0.9, 0.5, 0.35 * (1.0 - _blast_age)), true, -1.0, true)
 	if _hint_cell.x < 0:
 		return
 	var r := Rect2(view_offset + Vector2(_hint_cell) * zoom, Vector2.ONE * zoom)

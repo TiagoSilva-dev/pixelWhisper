@@ -14,7 +14,6 @@ func _init() -> void:
 	_toggle_row("Haptics", &"haptics_on")
 	_toggle_row("Numbers", &"show_numbers")
 	_toggle_row("Grid", &"show_grid")
-	_toggle_row("Glass effects", &"glass_fx")
 	_language_row()
 
 
@@ -68,7 +67,7 @@ func add_action(text: String, callback: Callable, confirm: bool = false) -> void
 		if confirm and not armed[0]:
 			armed[0] = true
 			b.text = "Tap again to confirm"
-			b.add_theme_color_override("font_color", AppTheme.ACCENT)
+			b.add_theme_color_override("font_color", AppTheme.RED)
 			get_tree().create_timer(3.0).timeout.connect(func() -> void:
 				if is_instance_valid(b):
 					armed[0] = false

@@ -1,5 +1,6 @@
 extends SceneTree
-## Statistical check of the ASMR pop: range, repetition, voices, throttling.
+## Statistical check of the ASMR note: bend range, repetition, voices, throttling.
+## (The color -> note mapping and the per-pixel bend per color are covered in test_features.gd.)
 ##   godot --headless --path . --script res://tools/tests/test_audio.gd
 
 
@@ -10,7 +11,7 @@ func _initialize() -> void:
 func _run() -> void:
 	await process_frame
 	var fb = root.get_node("Feedback")
-	print("streams: pops=%d pool=%d music=%s" % [fb._pops.size(), fb._pool.size(), fb._music != null])
+	print("streams: instruments=%d pool=%d music=%s" % [fb._pops.size(), fb._pool.size(), fb._music != null])
 
 	var pitches: Array[float] = []
 	var played := 0
@@ -35,8 +36,9 @@ func _run() -> void:
 			min_gap = minf(min_gap, absf(pitches[i] - pitches[i - 1]))
 	print("played=%d skipped=%d" % [played, skipped])
 	print("pitch range: %.3f .. %.3f (mean %.3f)   smallest step between consecutive pops: %.3f" % [mn, mx, sum / pitches.size(), min_gap])
-	print("PASS in range" if mn >= 0.9 - 0.0001 and mx <= 1.2 + 0.0001 else "FAIL out of range")
-	print("PASS no near-repeats" if min_gap >= 0.045 - 0.0001 else "FAIL near-repeat (%.3f)" % min_gap)
+	# color 0 is the base note (ratio 1.0), so the pitch IS the random bend: 0.95 .. 1.15
+	print("PASS in range" if mn >= 0.95 - 0.0001 and mx <= 1.15 + 0.0001 else "FAIL out of range")
+	print("PASS no near-repeats" if min_gap >= 0.03 - 0.0001 else "FAIL near-repeat (%.3f)" % min_gap)
 
 	# throttle: 50 calls in the same frame must not machine-gun
 	await create_timer(0.1).timeout

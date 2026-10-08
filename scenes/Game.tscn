@@ -2,9 +2,11 @@
 
 [ext_resource type="Script" path="res://scenes/game_screen.gd" id="1_game"]
 [ext_resource type="Script" path="res://game/canvas_view.gd" id="2_canvas"]
-[ext_resource type="Script" path="res://ui/widgets/icon_button.gd" id="3_icon"]
-[ext_resource type="Script" path="res://ui/widgets/glass_panel.gd" id="4_glass"]
-[ext_resource type="Script" path="res://ui/widgets/glass_progress.gd" id="5_progress"]
+[ext_resource type="Script" path="res://ui/widgets/candy_button.gd" id="3_button"]
+[ext_resource type="Script" path="res://ui/widgets/candy_panel.gd" id="4_panel"]
+[ext_resource type="Script" path="res://ui/widgets/candy_progress.gd" id="5_progress"]
+[ext_resource type="Script" path="res://ui/widgets/coin_pill.gd" id="6_coins"]
+[ext_resource type="Script" path="res://ui/confetti_overlay.gd" id="7_confetti"]
 
 [node name="GameScreen" type="Control"]
 layout_mode = 3
@@ -26,75 +28,78 @@ theme_override_constants/separation = 0
 
 [node name="TopBar" type="MarginContainer" parent="Layout"]
 layout_mode = 2
-theme_override_constants/margin_left = 30
-theme_override_constants/margin_top = 30
-theme_override_constants/margin_right = 30
-theme_override_constants/margin_bottom = 14
+theme_override_constants/margin_left = 26
+theme_override_constants/margin_top = 26
+theme_override_constants/margin_right = 26
+theme_override_constants/margin_bottom = 12
 
-[node name="TopPanel" type="PanelContainer" parent="Layout/TopBar"]
+[node name="Row" type="HBoxContainer" parent="Layout/TopBar"]
 layout_mode = 2
-script = ExtResource("4_glass")
-padding = Vector4(20, 16, 20, 16)
+theme_override_constants/separation = 16
 
-[node name="Row" type="HBoxContainer" parent="Layout/TopBar/TopPanel"]
-layout_mode = 2
-theme_override_constants/separation = 22
-
-[node name="BackButton" type="Control" parent="Layout/TopBar/TopPanel/Row"]
+[node name="BackButton" type="Control" parent="Layout/TopBar/Row"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(108, 108)
+custom_minimum_size = Vector2(250, 112)
 layout_mode = 2
 size_flags_vertical = 4
-script = ExtResource("3_icon")
-icon = 0
+script = ExtResource("3_button")
+icon = 1
+text = "Back"
+radius = 34.0
+pad_x = 26.0
 
-[node name="TitleBox" type="VBoxContainer" parent="Layout/TopBar/TopPanel/Row"]
+[node name="TitleBox" type="VBoxContainer" parent="Layout/TopBar/Row"]
 layout_mode = 2
 size_flags_horizontal = 3
 alignment = 1
 theme_override_constants/separation = 10
 
-[node name="TitleLabel" type="Label" parent="Layout/TopBar/TopPanel/Row/TitleBox"]
+[node name="TitleLabel" type="Label" parent="Layout/TopBar/Row/TitleBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"HeadingLabel"
+theme_override_font_sizes/font_size = 44
 text = "Title"
 clip_text = true
 text_overrun_behavior = 3
 
-[node name="ProgressRow" type="HBoxContainer" parent="Layout/TopBar/TopPanel/Row/TitleBox"]
+[node name="ProgressRow" type="HBoxContainer" parent="Layout/TopBar/Row/TitleBox"]
 layout_mode = 2
-theme_override_constants/separation = 18
+theme_override_constants/separation = 14
 
-[node name="Progress" type="Control" parent="Layout/TopBar/TopPanel/Row/TitleBox/ProgressRow"]
+[node name="Progress" type="Control" parent="Layout/TopBar/Row/TitleBox/ProgressRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(40, 16)
+custom_minimum_size = Vector2(40, 18)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 4
 script = ExtResource("5_progress")
 
-[node name="Percent" type="Label" parent="Layout/TopBar/TopPanel/Row/TitleBox/ProgressRow"]
+[node name="Percent" type="Label" parent="Layout/TopBar/Row/TitleBox/ProgressRow"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(84, 0)
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
 text = "0%"
+horizontal_alignment = 2
 
-[node name="HintButton" type="Control" parent="Layout/TopBar/TopPanel/Row"]
+[node name="HintButton" type="Control" parent="Layout/TopBar/Row"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(108, 108)
+custom_minimum_size = Vector2(112, 112)
 layout_mode = 2
 size_flags_vertical = 4
-script = ExtResource("3_icon")
-icon = 1
+script = ExtResource("3_button")
+icon = 17
+radius = 34.0
 
-[node name="MenuButton" type="Control" parent="Layout/TopBar/TopPanel/Row"]
+[node name="MenuButton" type="Control" parent="Layout/TopBar/Row"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(108, 108)
+custom_minimum_size = Vector2(112, 112)
 layout_mode = 2
 size_flags_vertical = 4
-script = ExtResource("3_icon")
-icon = 4
+script = ExtResource("3_button")
+icon = 15
+radius = 34.0
 
 [node name="CanvasHolder" type="Control" parent="Layout"]
 clip_contents = true
@@ -111,7 +116,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("2_canvas")
 
-[node name="Tools" type="MarginContainer" parent="Layout/CanvasHolder"]
+[node name="Overlay" type="MarginContainer" parent="Layout/CanvasHolder"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -119,61 +124,91 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-theme_override_constants/margin_left = 38
-theme_override_constants/margin_top = 32
-theme_override_constants/margin_right = 38
-theme_override_constants/margin_bottom = 34
+theme_override_constants/margin_left = 26
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 26
+theme_override_constants/margin_bottom = 26
 
-[node name="ToolsRow" type="HBoxContainer" parent="Layout/CanvasHolder/Tools"]
+[node name="OverlayColumn" type="VBoxContainer" parent="Layout/CanvasHolder/Overlay"]
 layout_mode = 2
-size_flags_vertical = 8
 mouse_filter = 2
 
-[node name="WandButton" type="Control" parent="Layout/CanvasHolder/Tools/ToolsRow"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(136, 136)
+[node name="TopRight" type="VBoxContainer" parent="Layout/CanvasHolder/Overlay/OverlayColumn"]
 layout_mode = 2
-script = ExtResource("3_icon")
-icon = 2
+size_flags_horizontal = 8
+mouse_filter = 2
+theme_override_constants/separation = 12
 
-[node name="Spacer" type="Control" parent="Layout/CanvasHolder/Tools/ToolsRow"]
+[node name="Coins" type="PanelContainer" parent="Layout/CanvasHolder/Overlay/OverlayColumn/TopRight"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 8
+script = ExtResource("6_coins")
+
+[node name="PowerUps" type="HBoxContainer" parent="Layout/CanvasHolder/Overlay/OverlayColumn/TopRight"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 12
+
+[node name="Spacer" type="Control" parent="Layout/CanvasHolder/Overlay/OverlayColumn"]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+
+[node name="BottomRow" type="HBoxContainer" parent="Layout/CanvasHolder/Overlay/OverlayColumn"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="BottomSpacer" type="Control" parent="Layout/CanvasHolder/Overlay/OverlayColumn/BottomRow"]
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 
-[node name="FitButton" type="Control" parent="Layout/CanvasHolder/Tools/ToolsRow"]
+[node name="FitButton" type="Control" parent="Layout/CanvasHolder/Overlay/OverlayColumn/BottomRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(120, 120)
+custom_minimum_size = Vector2(112, 112)
 layout_mode = 2
 size_flags_vertical = 8
-script = ExtResource("3_icon")
-icon = 3
+script = ExtResource("3_button")
+icon = 7
+radius = 34.0
 
 [node name="PaletteDock" type="MarginContainer" parent="Layout"]
 layout_mode = 2
-theme_override_constants/margin_left = 30
-theme_override_constants/margin_top = 6
-theme_override_constants/margin_right = 30
-theme_override_constants/margin_bottom = 30
 
 [node name="PalettePanel" type="PanelContainer" parent="Layout/PaletteDock"]
 layout_mode = 2
-script = ExtResource("4_glass")
-padding = Vector4(10, 26, 10, 20)
+script = ExtResource("4_panel")
+radius = 52
+shadow = 22
+padding = Vector4(0, 24, 0, 22)
+flat_bottom = true
 
 [node name="PaletteScroll" type="ScrollContainer" parent="Layout/PaletteDock/PalettePanel"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 196)
+custom_minimum_size = Vector2(0, 176)
 layout_mode = 2
 horizontal_scroll_mode = 3
 vertical_scroll_mode = 0
 
 [node name="PaletteInset" type="MarginContainer" parent="Layout/PaletteDock/PalettePanel/PaletteScroll"]
 layout_mode = 2
-theme_override_constants/margin_left = 22
-theme_override_constants/margin_right = 22
+theme_override_constants/margin_left = 26
+theme_override_constants/margin_right = 26
 
 [node name="PaletteRow" type="HBoxContainer" parent="Layout/PaletteDock/PalettePanel/PaletteScroll/PaletteInset"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_constants/separation = 6
+theme_override_constants/separation = 4
+
+[node name="Confetti" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("7_confetti")

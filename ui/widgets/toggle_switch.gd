@@ -13,6 +13,7 @@ var _tween: Tween
 
 func _init(initial: bool = false) -> void:
 	on = initial
+	_t = 1.0 if initial else 0.0
 	custom_minimum_size = Vector2(150, 84)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	focus_mode = Control.FOCUS_NONE
@@ -54,11 +55,11 @@ func _animate() -> void:
 
 func _draw() -> void:
 	var r := size.y * 0.5
-	var track := AppTheme.STROKE.lerp(AppTheme.MINT, clampf(_t, 0.0, 1.0))
+	var track := Color("d9d1b8").lerp(AppTheme.GREEN, clampf(_t, 0.0, 1.0))
 	draw_circle(Vector2(r, r), r, track, true, -1.0, true)
 	draw_circle(Vector2(size.x - r, r), r, track, true, -1.0, true)
 	draw_rect(Rect2(r, 0, size.x - 2.0 * r, size.y), track)
 	var kx := lerpf(r, size.x - r, _t)
-	var kr := r - 8.0
-	draw_circle(Vector2(kx, r + 3.0), kr, Color(0, 0, 0, 0.25), true, -1.0, true)
+	var kr := r - 7.0
+	draw_circle(Vector2(kx, r + 4.0), kr, Color(0, 0, 0, 0.18), true, -1.0, true)
 	draw_circle(Vector2(kx, r), kr, Color.WHITE, true, -1.0, true)

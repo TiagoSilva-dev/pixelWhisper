@@ -1,6 +1,7 @@
 extends Control
-## The painting screen: top bar, canvas, floating tools and the palette bar.
-## Owns the game flow (color selection, auto-advance, hints, wand, save, win).
+## The painting screen: top bar, canvas with the power-ups floating over it, and the palette bar.
+## Owns the game flow (color selection, auto-advance, hints, power-ups and their coin price,
+## save, win and time-lapse).
 
 signal home_requested
 signal level_requested(level_id: String)
@@ -9,17 +10,23 @@ const SAVE_INTERVAL_SEC := 0.6
 
 @onready var canvas: CanvasView = %Canvas
 @onready var title_label: Label = %TitleLabel
-@onready var progress_bar: GlassProgress = %Progress
+@onready var progress_bar: CandyProgress = %Progress
 @onready var percent_label: Label = %Percent
 @onready var palette_row: HBoxContainer = %PaletteRow
 @onready var palette_scroll: ScrollContainer = %PaletteScroll
-@onready var back_button: IconButton = %BackButton
-@onready var hint_button: IconButton = %HintButton
-@onready var menu_button: IconButton = %MenuButton
-@onready var wand_button: IconButton = %WandButton
-@onready var fit_button: IconButton = %FitButton
+@onready var back_button: CandyButton = %BackButton
+@onready var hint_button: CandyButton = %HintButton
+@onready var menu_button: CandyButton = %MenuButton
+@onready var fit_button: CandyButton = %FitButton
+@onready var power_ups: HBoxContainer = %PowerUps
+@onready var coins: CoinPill = %Coins
+@onready var confetti: ConfettiOverlay = %Confetti
 
 var level: PixelLevel
+var wand_button: PowerUpButton
+var bomb_button: PowerUpButton
+var magnifier_button: PowerUpButton
+
 var _swatches: Array[PaletteSwatch] = []
 var _modal: Modal
 var _save_timer: Timer
@@ -35,25 +42,41 @@ func _ready() -> void:
 	_save_timer.timeout.connect(_save_progress)
 	add_child(_save_timer)
 
+	back_button.color = AppTheme.RED
+	hint_button.color = AppTheme.PURPLE   # the bulb is yellow: it would vanish on a yellow face
+	menu_button.color = Color("ff6b4a")
+	fit_button.color = AppTheme.BLUE
+	progress_bar.fill_color = AppTheme.PINK
+	progress_bar.track_color = Color(AppTheme.PINK, 0.16)
+	progress_bar.turns_green = false
+
+	wand_button = _add_power_up(Icons.Kind.WAND, "Magic wand", GameState.COST_WAND, _on_wand)
+	bomb_button = _add_power_up(Icons.Kind.BOMB, "Ink bomb", GameState.COST_BOMB, _on_bomb)
+	magnifier_button = _add_power_up(Icons.Kind.MAGNIFIER, "Magnifier", GameState.COST_MAGNIFIER, _on_magnifier)
+
 	back_button.pressed.connect(_go_home)
 	hint_button.pressed.connect(_on_hint)
 	menu_button.pressed.connect(_open_settings)
-	wand_button.pressed.connect(_on_wand)
 	fit_button.pressed.connect(func() -> void: canvas.fit_view())
-	wand_button.tint = Color(1.0, 0.86, 0.55)    # warm glass for the "magic" tools
-	hint_button.tint = Color(1.0, 0.9, 0.62)
 
-	canvas.input_blockers = [wand_button, fit_button]
+	canvas.input_blockers = [wand_button, bomb_button, magnifier_button, fit_button, coins]
 	canvas.cell_painted.connect(_on_cell_painted)
 	canvas.color_completed.connect(_on_color_completed)
 	canvas.progress_changed.connect(_on_progress)
 	canvas.level_completed.connect(_on_level_completed)
 	canvas.wrong_tapped.connect(_on_wrong_tapped)
 	canvas.fit_state_changed.connect(_on_fit_state_changed)
-	GameState.wallet_changed.connect(_refresh_wand)
-	_refresh_wand()
+	canvas.bomb_dropped.connect(_on_bomb_dropped)
+	canvas.armed_changed.connect(func(tool: StringName) -> void: bomb_button.armed = (tool == &"bomb"))
 	fit_button.modulate.a = 0.0
 	fit_button.visible = false
+
+
+func _add_power_up(kind: Icons.Kind, label: String, cost: int, on_press: Callable) -> PowerUpButton:
+	var b := PowerUpButton.new(kind, label, cost)
+	b.pressed.connect(on_press)
+	power_ups.add_child(b)
+	return b
 
 
 ## Called by Main right after the scene enters the tree.
@@ -65,7 +88,7 @@ func start(level_id: String) -> void:
 		return
 	GameState.last_level_id = level_id
 	title_label.text = level.title
-	canvas.set_level(level, GameState.get_painted(level_id, level.cell_count()))
+	canvas.set_level(level, GameState.get_painted(level_id, level.cell_count()), GameState.get_timelapse(level_id))
 	_completed = canvas.is_complete()
 	_build_palette()
 	var first := canvas.next_unfinished_color(-1)
@@ -78,6 +101,9 @@ func start(level_id: String) -> void:
 
 
 func handle_back() -> bool:
+	if canvas.is_playing_timelapse():
+		canvas.stop_timelapse()
+		return true
 	if is_instance_valid(_modal):
 		if _modal is WinOverlay:
 			return true  # the win screen has explicit buttons
@@ -85,6 +111,15 @@ func handle_back() -> bool:
 		return true
 	_go_home()
 	return true
+
+
+## A tap anywhere skips the time-lapse.
+func _input(event: InputEvent) -> void:
+	if not canvas.is_playing_timelapse():
+		return
+	if (event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed):
+		canvas.stop_timelapse()
+		get_viewport().set_input_as_handled()
 
 
 # ---------------------------------------------------------------------------------
@@ -174,28 +209,51 @@ func _on_level_completed() -> void:
 	if _completed:
 		return
 	_completed = true
-	_save_progress()
+	# Order matters: store_progress() flags a 100% picture as done, which would make
+	# mark_completed() think this was not the first time and skip the coin reward.
 	var first_time := GameState.mark_completed(level.id)
+	_save_progress()
 	Feedback.win()
+	confetti.celebrate()
 	await canvas.play_completion()
 	await get_tree().create_timer(0.35).timeout
 	if not is_inside_tree():
 		return
+	_show_win(first_time)
+
+
+func _show_win(first_time: bool) -> void:
 	var win := WinOverlay.new()
 	_open_modal(win)
 	var has_next := LevelLibrary.next_unfinished(level.id) != ""
-	win.present(level, first_time, has_next)
+	win.present(level, GameState.LEVEL_REWARD if first_time else 0, has_next, not canvas.recorder.is_empty())
 	win.next_pressed.connect(func() -> void:
 		level_requested.emit(LevelLibrary.next_unfinished(level.id)))
 	win.home_pressed.connect(_go_home)
 	win.save_pressed.connect(_on_save_image)
+	win.timelapse_pressed.connect(_play_timelapse.bind(true))
+
+
+## Replays the painting from the blank canvas (see CanvasView.play_timelapse).
+func _play_timelapse(then_show_win: bool) -> void:
+	if canvas.recorder.is_empty():
+		return
+	if is_instance_valid(_modal):
+		_modal.close()        # idempotent: the settings dialog has already started closing itself
+		await _modal.closed   # ...and its handler re-enables painting, which the replay then undoes
+	await canvas.play_timelapse()
+	if then_show_win and is_inside_tree():
+		await get_tree().create_timer(0.4).timeout
+		if is_inside_tree():
+			_show_win(false)
 
 
 # ---------------------------------------------------------------------------------
-# Tools
+# Tools: hint (free) and the coin-priced power-ups
 # ---------------------------------------------------------------------------------
 
 func _on_hint() -> void:
+	canvas.armed_tool = &""
 	if canvas.selected < 0:
 		UiFx.toast(self, tr("Pick a color first"), 1.6)
 		return
@@ -205,25 +263,64 @@ func _on_hint() -> void:
 		UiFx.toast(self, tr("Everything of this color is painted"), 1.6)
 
 
+## Checks the wallet for `cost`; if it falls short, says so and returns false.
+func _can_pay(cost: int, button: PowerUpButton) -> bool:
+	if GameState.can_afford(cost):
+		return true
+	UiFx.toast(self, tr("Not enough coins"), 1.8)
+	Feedback.wrong()
+	button.wiggle()
+	return false
+
+
 func _on_wand() -> void:
+	canvas.armed_tool = &""
 	if canvas.selected < 0:
 		UiFx.toast(self, tr("Pick a color first"), 1.6)
 		return
-	if GameState.wands <= 0:
-		UiFx.toast(self, tr("No wands left. Finish a picture to earn one!"), 2.4)
-		Feedback.wrong()
+	if not _can_pay(GameState.COST_WAND, wand_button):
 		return
-	if canvas.use_wand(40) > 0:
-		GameState.spend_wand()
+	if canvas.use_wand() > 0:
+		GameState.spend_coins(GameState.COST_WAND)
 		Feedback.wand()
+		wand_button.pop()
 	else:
-		UiFx.toast(self, tr("Everything of this color is painted"), 1.6)
+		UiFx.toast(self, tr("Nothing of this color on screen"), 1.8)
 
 
-func _refresh_wand() -> void:
-	wand_button.badge = str(GameState.wands) if GameState.wands > 0 else ""
-	wand_button.dimmed = GameState.wands <= 0
-	wand_button.pop()
+## The bomb needs a second step: arm it here, then tap the spot on the picture.
+func _on_bomb() -> void:
+	if canvas.armed_tool == &"bomb":
+		canvas.armed_tool = &""
+		return
+	if not _can_pay(GameState.COST_BOMB, bomb_button):
+		return
+	canvas.armed_tool = &"bomb"
+	UiFx.toast(self, tr("Tap the picture to drop the bomb"), 2.2)
+
+
+func _on_bomb_dropped(_cell: Vector2i, painted: int) -> void:
+	if painted <= 0:
+		UiFx.toast(self, tr("Nothing to paint there"), 1.6)
+		return
+	GameState.spend_coins(GameState.COST_BOMB)
+	Feedback.wand()
+	bomb_button.pop()
+
+
+func _on_magnifier() -> void:
+	canvas.armed_tool = &""
+	if not _can_pay(GameState.COST_MAGNIFIER, magnifier_button):
+		return
+	var color_index := canvas.magnify()
+	if color_index < 0:
+		UiFx.toast(self, tr("Nothing left to paint"), 1.6)
+		return
+	GameState.spend_coins(GameState.COST_MAGNIFIER)
+	Feedback.hint()
+	magnifier_button.pop()
+	if color_index != canvas.selected:
+		_select(color_index)
 
 
 func _on_save_image() -> void:
@@ -240,6 +337,8 @@ func _on_save_image() -> void:
 
 func _open_settings() -> void:
 	var m := SettingsModal.new()
+	if not canvas.recorder.is_empty():
+		m.add_action("Time-lapse", _play_timelapse.bind(false))
 	m.add_action("Restart picture", _restart_level, true)
 	_open_modal(m)
 
@@ -248,6 +347,7 @@ func _open_modal(m: Modal) -> void:
 	_modal = m
 	canvas.input_enabled = false
 	add_child(m)
+	move_child(confetti, get_child_count() - 1)   # confetti rains over dialogs too
 	m.closed.connect(func() -> void:
 		# Re-enable painting unless the picture is already finished.
 		if not _completed:
@@ -265,6 +365,7 @@ func _save_progress() -> void:
 	if level == null or _discard_progress:
 		return
 	GameState.store_progress(level.id, canvas.painted, canvas.painted_total, level.total_paintable)
+	GameState.store_timelapse(level.id, canvas.recorder.to_bytes())
 	GameState.flush()
 
 

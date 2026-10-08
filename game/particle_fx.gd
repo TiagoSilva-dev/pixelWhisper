@@ -1,6 +1,6 @@
 class_name ParticleFx
 extends Node2D
-## Pooled GPUParticles2D bursts.
+## Pooled GPUParticles2D pixel-dust bursts (the sparks of a painted cell).
 ##
 ## Dragging paints ~30 cells/second; instancing and freeing a particle node per cell
 ## would stutter on low-end phones. Instead a fixed pool is created once and re-fired
@@ -9,16 +9,13 @@ extends Node2D
 ##
 ## Pool size matters: modulate is per emitter, so an emitter must not be recycled while
 ## its particles are still alive (they would change color mid-flight). 28 emitters x
-## 0.45 s lifetime covers ~60 bursts/second.
+## 0.45 s lifetime covers ~60 bursts/second. The screen-wide confetti is ConfettiOverlay's job.
 
 const SPARK_POOL := 28
 const SPARK_LIFETIME := 0.45
-const CONFETTI_POOL := 4
 
 var _sparks: Array[GPUParticles2D] = []
-var _confetti: Array[GPUParticles2D] = []
 var _next_spark := 0
-var _next_confetti := 0
 var _square: ImageTexture
 
 
@@ -36,13 +33,6 @@ func _init() -> void:
 		add_child(p)
 		_sparks.append(p)
 
-	var confetti_mat := _make_confetti_material()
-	for i in CONFETTI_POOL:
-		var p := _make_emitter(confetti_mat, 70, 2.6)
-		p.explosiveness = 0.9
-		add_child(p)
-		_confetti.append(p)
-
 
 ## One pixel-dust burst at `pos` (this node's local space), tinted `color`.
 ## `size` scales with the canvas zoom so shards stay proportional to the cell.
@@ -52,16 +42,6 @@ func burst(pos: Vector2, color: Color, size: float = 1.0) -> void:
 	p.position = pos
 	p.scale = Vector2.ONE * size
 	p.modulate = color.lightened(0.15)
-	p.restart()
-	p.emitting = true
-
-
-## Rainbow pixel confetti raining from `from` (e.g. above the finished picture).
-func confetti(from: Vector2, width: float) -> void:
-	var p := _confetti[_next_confetti]
-	_next_confetti = (_next_confetti + 1) % _confetti.size()
-	p.position = from
-	(p.process_material as ParticleProcessMaterial).emission_box_extents = Vector3(width * 0.5, 4, 1)
 	p.restart()
 	p.emitting = true
 
@@ -95,30 +75,6 @@ func _make_spark_material() -> ParticleProcessMaterial:
 	m.scale_max = 2.6
 	m.scale_curve = _curve_texture([Vector2(0, 1), Vector2(0.65, 0.8), Vector2(1, 0)])
 	m.color_ramp = _fade_out_ramp()
-	return m
-
-
-func _make_confetti_material() -> ParticleProcessMaterial:
-	var m := ParticleProcessMaterial.new()
-	m.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
-	m.emission_box_extents = Vector3(300, 4, 1)
-	m.direction = Vector3(0, 1, 0)
-	m.spread = 38.0
-	m.initial_velocity_min = 260.0
-	m.initial_velocity_max = 620.0
-	m.gravity = Vector3(0, 300, 0)
-	m.damping_min = 30.0
-	m.damping_max = 90.0
-	m.scale_min = 2.0
-	m.scale_max = 5.0
-	m.angle_min = 0.0
-	m.angle_max = 360.0
-	m.angular_velocity_min = -260.0
-	m.angular_velocity_max = 260.0
-	m.color = Color(1.0, 0.45, 0.45)
-	m.hue_variation_min = -1.0
-	m.hue_variation_max = 1.0
-	m.color_ramp = _fade_out_ramp(0.75)
 	return m
 
 

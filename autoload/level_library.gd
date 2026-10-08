@@ -9,7 +9,8 @@ signal library_changed
 
 const BUNDLED_DIR := "res://assets/levels/"
 
-## [{id, title, path}] in display order. `title` is an English translation key.
+## [{id, title, path, category, popular, premium}] in display order. `title` is an English
+## translation key; `category` is one of Categories (animals / drawings / anime).
 var entries: Array[Dictionary] = []
 var _cache: Dictionary = {}  # id -> PixelLevel
 
@@ -28,6 +29,9 @@ func rescan() -> void:
 				"id": str(item.id),
 				"title": str(item.title),
 				"path": BUNDLED_DIR + str(item.file),
+				"category": str(item.get("category", "drawings")),
+				"popular": bool(item.get("popular", false)),
+				"premium": bool(item.get("premium", false)),
 			})
 	else:
 		push_error("LevelLibrary: cannot read %smanifest.json" % BUNDLED_DIR)
@@ -39,6 +43,15 @@ func get_entry(level_id: String) -> Dictionary:
 		if e.id == level_id:
 			return e
 	return {}
+
+
+## Entries of a category (see Categories), in display order. `Categories.ALL` returns everything.
+func entries_in(category: StringName) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for e in entries:
+		if Categories.matches(e, category):
+			out.append(e)
+	return out
 
 
 func index_of(level_id: String) -> int:

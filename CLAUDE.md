@@ -1,0 +1,51 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+PixelWhisper is a portrait color-by-number pixel-art game in **Godot 4.7** (GDScript, `gl_compatibility` renderer; targets Web, Android, iOS) with a light, kid-friendly "candy" UI. Code and comments are in English; `README.md` and `docs/IOS.md` are in pt-BR (the user writes pt-BR too, so answer in Portuguese).
+
+## Commands
+
+No Godot binary is installed in the WSL environment (the user's editor is the Windows build). Download `Godot_v4.7.2-stable_linux.x86_64` into a scratch dir and point `GODOT` at it.
+
+```bash
+godot --headless --path . --import          # required after adding/renaming a class_name script or an asset
+GODOT=/path/to/godot tools/run_tests.sh     # whole suite; SKIP_GUI=1 when there is no display
+godot --path . --rendering-driver opengl3 --resolution 540x960   # run the game
+```
+
+There is no test framework: each file in `tools/tests/` is a standalone `SceneTree` script, run on its own with
+`godot --headless --path . --script res://tools/tests/<name>.gd` (`test_touch.gd` and `screenshot_tour.gd` need a window and `--rendering-driver opengl3 --resolution 540x960`, not `--headless`).
+
+- `run_tests.sh` decides pass/fail by **grepping the output for `FAIL`, `SCRIPT ERROR` or `Parse Error`**. A new test must print `FAIL ...` on failure (and `PASS ...` otherwise); a test that only calls `quit(1)` is not seen.
+- `check_project.gd` loads every `.gd`/`.tscn`/`.gdshader` (skipping `tools/`) — the quickest way to catch a parse error after an edit.
+- `screenshot_tour.gd` drives the real UI and writes PNGs to `user://shots/`.
+
+Other tooling: `python3 -I tools/fetch_icons.py` re-downloads the icon set (needs ImageMagick); `python3 tools/gen_audio.py` re-synthesizes all of `assets/audio/*.wav` (re-import afterwards); `python3 tools/mock_pixellab_server.py` fakes the PixelLab API; `PIXELLAB_API_TOKEN=... node server/proxy.mjs` runs the token-holding proxy. Exports: `godot --headless --path . --export-release "Web" build/web/index.html` (also presets "Android", "iOS"; `build/` is gitignored). The iOS preset's `app_store_team_id` is intentionally empty — it is the user's Apple Team ID, filled in on their Mac (see `docs/IOS.md`).
+
+## Architecture
+
+**Level data flow.** `assets/levels/manifest.json` (display order) → `LevelLibrary` autoload loads the PNG and builds a `PixelLevel` lazily via `LevelGenerator.generate` (+ `PaletteQuantizer`: median-cut in OKLab, merges tiny clusters, ≤28 colors; IDs ordered by frequency). A `PixelLevel` is an immutable `PackedByteArray` of palette indices (`EMPTY = 255` for transparent) — **there are never per-cell nodes**. To add a picture: 64×64 PNG in `assets/levels/`, a manifest line (`category`: `animals`/`drawings`/`anime`, optional `popular`/`premium` flags — see `core/categories.gd`), a pt entry for its title in `I18n.PT`, then `--import`. "Premium" is only a badge: there is no paywall.
+
+**Rendering/input.** `game/canvas_view.gd` (`CanvasView`) draws the whole grid as a single `TextureRect` with `shaders/canvas_grid.gdshader`; the CPU only maintains a small per-cell state texture (palette index, painted flag, pop animation). Digits come from a 5×7 bitmap font atlas (`game/glyph_atlas.gd`) sampled by the shader. It owns camera (pinch/pan/zoom, fit), painting (touch, mouse, trackpad; mouse events emulated from touch are ignored), hints, the power-ups (`use_wand` = every cell of the selected color currently on screen; `apply_bomb` = 5×5 square, armed via `armed_tool` and dropped by the next tap; `magnify`) and the time-lapse (`recorder` + `play_timelapse()`), and reports through signals (`cell_painted`, `color_completed`, `level_completed`, `wrong_tapped`, `bomb_dropped`, …). Every painted cell goes through `_paint_index()` (sound, haptics, sparks, history). Power-up cells are queued and released a few per frame. `scenes/game_screen.gd` wires the signals to palette, progress bar, `Feedback` and `GameState`, and charges coins *after* a power-up actually did something.
+
+**Screens.** `scenes/main.gd` is the root: it owns the paper background (`PaperBackground`, drawn once), lays out a phone-width centered column with safe-area insets inside `%ScreenHost`, and swaps exactly one screen at a time (`HomeScreen` ↔ `GameScreen`) with a fade/scale tween. `HomeScreen` is the hub: five lazily built pages in `scenes/pages/` (Gallery, Categories, Diary, Shop, Profile) switched by `BottomNav`; `last_tab`/`last_category` are statics so returning from a picture lands where you were. Screens never reference each other; they emit signals (`level_chosen`, `home_requested`, `level_requested`) that `main.gd` connects. Android back / Esc goes to the current screen's `handle_back()`.
+
+**Autoloads** (`project.godot`, order matters): `GameState` (settings, **coins** and power-up prices, per-level progress and time-lapse history, days painted, daily gift; saves to `user://save.json` — debounced, atomic tmp+rename, flushed on pause/close; painted cells stored as deflate+base64 keyed by **level id**, so ids must stay stable) · `I18n` · `Feedback` (10-voice audio pool with per-voice `pitch_scale`: Kalimba/Marimba note from the color index × a 0.95–1.15 bend; haptics 25 ms per pixel / 100 ms per finished color through `vibrate()`; music) · `PixelLabAPI` · `LevelLibrary`.
+
+**Candy UI.** `ui/app_theme.gd` holds the palette (cream paper, white cards, saturated candy colors with a darker "lip") and the `Theme`. Widgets in `ui/widgets/`: `CandyButton` (icon and/or text, pill or square, press = squish + sink onto the lip), `PowerUpButton`, `CandyProgress` and `GradientTitle` draw themselves in `_draw()` with no child nodes; `CandyPanel` (rounded card) and `CoinPill` are styled `PanelContainer`s. Icons come from two free MIT sets in `assets/icons/` (Fluent Emoji 3D `color/*.png` for illustrated ones, Phosphor `glyph/*.svg` white glyphs that `color` tints); `tools/fetch_icons.py` downloads, recenters and alpha-bleeds them (rerun it to add one: edit its COLOR/GLYPHS tables, then `Icons.Kind` and `FILES` in `ui/icons.gd`; `Kind` order matters because `.tscn` files store it as an int, so only append). `Icons.draw(canvas_item, kind, center, half_extent, color)` rasterizes each icon once per on-screen size (SVG at exact scale, PNG with a Lanczos downscale, sizes derived from the viewport stretch, node `scale` ignored) and caches it; the files use the `keep` importer, so they are read as raw bytes with `FileAccess`, not imported as textures. There is no blur or screen-copy shader any more. Controls that live in a `ScrollContainer` must not call `accept_event()` on press (it would stop drag-scrolling); they check a tap slop on release instead.
+
+**PixelLab is an isolated, unused module.** "Create with AI" was removed from the UI on purpose; `autoload/pixellab_api.gd`, `server/proxy.mjs` and `tools/mock_pixellab_server.py` were kept deliberately — don't delete or wire them back in without asking. The PixelLab token must never be placed in the game, `project.godot` or an export (`.mcp.json` and `.claude/` hold secrets and are gitignored — keep it so).
+
+## Gotchas
+
+- **i18n**: English strings are the translation keys. Add the pt-BR text to `I18n.PT`; set `Label.text` to the English key directly (instead of `tr(key)`) so it retranslates when the language changes.
+- **`--script` tests run before autoloads exist**: the script and any class it names — even in an `is WinOverlay` check — can't reference autoload identifiers at compile time (`Modal` → `UiFx` → `Feedback` breaks the whole chain and every scene after it fails to load). Use `load("res://...").new()`, `has_signal`/`has_method` checks and `root.get_node("GameState")`; reset state by deleting `user://save.json` in `_initialize()`, and change coins through `add_coins()` (assigning `coins` doesn't emit `wallet_changed`).
+- **Completion order**: `GameScreen._on_level_completed` must call `mark_completed()` *before* `_save_progress()`; `store_progress()` flags a 100% picture as done and the coin reward would be skipped.
+- **Format strings and i18n**: `Label.text = "%d colors" % n` is never translated (formatting happens first); use `tr("%d colors") % n` and re-set it on `NOTIFICATION_TRANSLATION_CHANGED` if the label can outlive a language change.
+- **Anchors**: `set_anchors_preset()` keeps offsets by default, so in `_ready` on a node already in the tree use `set_anchors_and_offsets_preset()`.
+- **Canvas shaders**: `COLOR` in `fragment()` already includes `texture * modulate`; `SCREEN_PIXEL_SIZE` is only usable inside `fragment()`.
+- **Icon assets**: a new PNG/SVG under `assets/icons/` needs a `.import` containing `importer="keep"` *before* Godot first scans it (the fetch script writes it); otherwise Godot imports it as a texture and an export drops the raw file, so the icon is missing outside the editor. PNGs must be alpha-bled (transparent pixels carrying the edge color) or downscaling leaves a dark halo.
+- `assets/fonts/Nunito.ttf.import` must keep `oversampling=2.0` (auto drops the last pixel row of small text at fractional scales).
+- Android export needs `import_etc2_astc=true` and the `VIBRATE` permission (both already set).
+- `project.godot` stretches `canvas_items` from a 1080×1920 design size; the desktop window is overridden to 540×960. Authored UI uses containers/anchors only.
