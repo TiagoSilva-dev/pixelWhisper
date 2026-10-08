@@ -110,6 +110,7 @@ func setup(entry: Dictionary, level: PixelLevel) -> void:
 	_meta.text = tr("%d colors") % _color_count
 	v.add_child(_meta)
 
+	GameState.entitlements_changed.connect(_badges.queue_redraw)   # the lock goes away on unlock/purchase
 	refresh(level)
 
 
@@ -178,6 +179,12 @@ func _draw_badges() -> void:
 		_badges.draw_circle(c2 + Vector2(0, 3), r2, Color(0, 0, 0, 0.22), true, -1.0, true)
 		_badges.draw_circle(c2, r2, Color.WHITE, true, -1.0, true)
 		Icons.draw(_badges, Icons.Kind.DIAMOND, c2, r2 * 0.6)
+		if LevelLibrary.is_locked(level_id):
+			var r3 := 30.0
+			var c3 := Vector2(s.x - r3 - 12.0, s.y - r3 - 12.0)
+			_badges.draw_circle(c3 + Vector2(0, 3), r3, Color(0, 0, 0, 0.22), true, -1.0, true)
+			_badges.draw_circle(c3, r3, Color.WHITE, true, -1.0, true)
+			Icons.draw(_badges, Icons.Kind.LOCK, c3, r3 * 0.62)
 
 
 # -- motion ---------------------------------------------------------------------------------

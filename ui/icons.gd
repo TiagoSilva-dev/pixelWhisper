@@ -14,7 +14,7 @@ extends RefCounted
 enum Kind {
 	NONE, BACK, CLOSE, CHECK, PLAY, NEXT, PLUS, FIT, SAVE, REPLAY,
 	STAR, PAW, BRUSH, AVATAR, DIAMOND, GEAR, COIN, BULB, WAND, BOMB, MAGNIFIER,
-	HOME, STACK, CALENDAR, SHOP, USER, GIFT, FLAME, TROPHY,
+	HOME, STACK, CALENDAR, SHOP, USER, GIFT, FLAME, TROPHY, LOCK, CLAPPER,
 }
 
 const DIR := "res://assets/icons/"
@@ -47,6 +47,8 @@ const FILES := {
 	Kind.GIFT: "color/gift.png",
 	Kind.FLAME: "color/flame.png",
 	Kind.TROPHY: "color/trophy.png",
+	Kind.LOCK: "color/lock.png",
+	Kind.CLAPPER: "color/clapper.png",
 }
 
 const SOURCE_PX := 256.0       # the PNGs' size and the SVGs' viewBox

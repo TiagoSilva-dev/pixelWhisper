@@ -15,6 +15,8 @@ func _init() -> void:
 	_toggle_row("Numbers", &"show_numbers")
 	_toggle_row("Grid", &"show_grid")
 	_language_row()
+	if OS.is_debug_build():
+		_debug_premium_row()
 
 
 func _toggle_row(label_text: String, setting: StringName) -> void:
@@ -27,6 +29,21 @@ func _toggle_row(label_text: String, setting: StringName) -> void:
 	row.add_child(l)
 	var sw := ToggleSwitch.new(GameState.get(setting))
 	sw.toggled.connect(func(on: bool) -> void: GameState.set_setting(setting, on))
+	row.add_child(sw)
+
+
+## Debug builds only: flips the Premium flag so both states can be tried without buying anything.
+func _debug_premium_row() -> void:
+	var row := HBoxContainer.new()
+	content.add_child(row)
+	var l := Label.new()
+	l.text = "Premium (debug)"
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l.add_theme_color_override("font_color", AppTheme.PURPLE)
+	row.add_child(l)
+	var sw := ToggleSwitch.new(GameState.premium)
+	sw.toggled.connect(func(on: bool) -> void: GameState.set_premium(on))
 	row.add_child(sw)
 
 

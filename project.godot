@@ -29,6 +29,8 @@ buses/default_bus_layout=""
 GameState="*res://autoload/game_state.gd"
 I18n="*res://autoload/i18n.gd"
 Feedback="*res://autoload/feedback.gd"
+Ads="*res://autoload/ads.gd"
+Store="*res://autoload/store.gd"
 PixelLabAPI="*res://autoload/pixellab_api.gd"
 LevelLibrary="*res://autoload/level_library.gd"
 

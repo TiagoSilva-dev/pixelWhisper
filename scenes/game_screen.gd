@@ -219,6 +219,11 @@ func _on_level_completed() -> void:
 	await get_tree().create_timer(0.35).timeout
 	if not is_inside_tree():
 		return
+	# The celebration is over: this is the natural pause for the video ad. It returns at once for
+	# Premium players and when no ad is ready, so the win screen is never held up.
+	await Ads.show_interstitial()
+	if not is_inside_tree():
+		return
 	_show_win(first_time)
 
 
@@ -263,9 +268,10 @@ func _on_hint() -> void:
 		UiFx.toast(self, tr("Everything of this color is painted"), 1.6)
 
 
-## Checks the wallet for `cost`; if it falls short, says so and returns false.
+## Checks the wallet for a power-up with list price `cost` (free for Premium); if it falls short,
+## says so and returns false.
 func _can_pay(cost: int, button: PowerUpButton) -> bool:
-	if GameState.can_afford(cost):
+	if GameState.can_afford(GameState.price_of(cost)):
 		return true
 	UiFx.toast(self, tr("Not enough coins"), 1.8)
 	Feedback.wrong()
@@ -281,7 +287,7 @@ func _on_wand() -> void:
 	if not _can_pay(GameState.COST_WAND, wand_button):
 		return
 	if canvas.use_wand() > 0:
-		GameState.spend_coins(GameState.COST_WAND)
+		GameState.spend_coins(GameState.price_of(GameState.COST_WAND))
 		Feedback.wand()
 		wand_button.pop()
 	else:
@@ -303,7 +309,7 @@ func _on_bomb_dropped(_cell: Vector2i, painted: int) -> void:
 	if painted <= 0:
 		UiFx.toast(self, tr("Nothing to paint there"), 1.6)
 		return
-	GameState.spend_coins(GameState.COST_BOMB)
+	GameState.spend_coins(GameState.price_of(GameState.COST_BOMB))
 	Feedback.wand()
 	bomb_button.pop()
 
@@ -316,7 +322,7 @@ func _on_magnifier() -> void:
 	if color_index < 0:
 		UiFx.toast(self, tr("Nothing left to paint"), 1.6)
 		return
-	GameState.spend_coins(GameState.COST_MAGNIFIER)
+	GameState.spend_coins(GameState.price_of(GameState.COST_MAGNIFIER))
 	Feedback.hint()
 	magnifier_button.pop()
 	if color_index != canvas.selected:

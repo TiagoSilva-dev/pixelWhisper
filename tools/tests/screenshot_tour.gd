@@ -54,6 +54,9 @@ func _initialize() -> void:
 func _run() -> void:
 	await process_frame
 	var gs = root.get_node("GameState")
+	var ads = root.get_node("Ads")
+	ads.provider.seconds = 2.0        # the fake ads close by themselves, so the tour never waits for a tap
+	ads.provider.auto_close = true
 
 	main = load("res://scenes/Main.tscn").instantiate()
 	root.add_child(main)
@@ -74,8 +77,21 @@ func _run() -> void:
 	home._pages[&"home"]._bar._on_pill(&"animals")
 	await shot("15_home_animals", 0.9)
 	home._pages[&"home"]._bar._on_pill(&"anime")
-	await shot("16_home_anime_empty", 0.5)
+	await shot("16_home_anime", 0.5)
 	home._pages[&"home"]._bar._on_pill(&"anime")   # clear the filter again
+
+	# ---- Premium: locked pictures, the dialog, the (fake) rewarded video ------------------------
+	home._pages[&"home"]._bar._on_pill(&"premium")
+	await shot("17_home_premium", 0.9)
+	home._pages[&"home"]._bar._on_pill(&"premium")
+	home._on_level_chosen("baby_unicorn")
+	await shot("18_unlock_dialog", 0.7)
+	home._modal._on_watch()
+	await shot("19_fake_rewarded_ad", 0.8)
+	await wait(2.6)                   # the video ends by itself and the picture opens
+	main.host.get_child(0)._go_home()
+	await wait(1.6)
+	home = main.host.get_child(0)
 
 	main.open_level("fox")
 	await wait(1.6)
@@ -155,7 +171,9 @@ func _run() -> void:
 				cv.paint_cell(i % lvl.width, i / lvl.width, true)
 	await wait(0.6)
 	await shot("30_completion_confetti", 0.1)
-	await wait(2.6)
+	await wait(2.4)
+	await shot("30b_fake_interstitial", 0.4)   # the ad between the celebration and the win screen
+	await wait(2.4)
 	await shot("31_win_overlay", 0.5)
 
 	# ---- time-lapse -------------------------------------------------------------------------
@@ -210,5 +228,18 @@ func _run() -> void:
 	main.open_level("moon_owl")
 	await wait(1.6)
 	await shot("53_pt_game", 0.4)
+
+	# ---- Premium owned: free power-ups, the active card, the member badge --------------------------
+	gs.set_setting(&"language", "en")
+	gs.set_premium(true)
+	await shot("54_game_premium_free", 0.6)
+	game = main.host.get_child(0)
+	game._go_home()
+	await wait(1.5)
+	home = main.host.get_child(0)
+	home.nav._on_tapped(&"shop")
+	await shot("55_shop_premium_active", 0.6)
+	home.nav._on_tapped(&"profile")
+	await shot("56_profile_premium", 0.6)
 	print("DONE")
 	quit()

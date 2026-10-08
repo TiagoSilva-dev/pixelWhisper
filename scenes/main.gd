@@ -43,6 +43,8 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 
 func _on_back() -> void:
+	if Ads.presenting:
+		return   # an ad is on screen: Back must not leave the game behind it
 	if _current != null and _current.has_method("handle_back") and _current.handle_back():
 		return
 	get_tree().quit()

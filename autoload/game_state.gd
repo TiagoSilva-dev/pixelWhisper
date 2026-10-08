@@ -1,6 +1,6 @@
 extends Node
-## Persistent player state: settings, coins and per-level progress (plus each picture's
-## time-lapse history, and the days the player painted on).
+## Persistent player state: settings, coins, Premium (and the pictures opened by a rewarded video)
+## and per-level progress (plus each picture's time-lapse history, and the days the player painted on).
 ##
 ## Painted cells are stored as one byte per cell, deflate-compressed + base64'd, so a
 ## full 64x64 level is ~100-300 bytes on disk. Saves are debounced (painting fires
@@ -9,6 +9,7 @@ extends Node
 
 signal settings_changed
 signal wallet_changed
+signal entitlements_changed   ## Premium bought or revoked, or a Premium picture unlocked
 signal progress_changed(level_id: String)
 
 const SAVE_PATH := "user://save.json"
@@ -34,6 +35,10 @@ var coins: int = STARTING_COINS
 var last_level_id: String = ""
 var last_gift_day: String = ""        ## "YYYY-MM-DD" of the last claimed daily gift
 var activity_days: Array[String] = [] ## days (ascending, "YYYY-MM-DD") with at least one painted cell
+## The Premium pack is owned (set by `Store`, which re-checks it with the app store on a phone).
+var premium: bool = false
+## Premium pictures opened one by one by watching a rewarded video (level id -> true).
+var _unlocked: Dictionary = {}
 
 ## level_id -> {"p": base64(deflate(painted)), "sz": raw byte count, "n": painted, "t": total, "done": bool,
 ##              "tl": base64(deflate(time-lapse bytes)), "tlsz": raw byte count}
@@ -84,8 +89,39 @@ func can_afford(price: int) -> bool:
 func spend_coins(price: int) -> bool:
 	if price < 0 or coins < price:
 		return false
-	add_coins(-price)
+	if price > 0:
+		add_coins(-price)
 	return true
+
+
+## What a power-up with list price `base` costs this player: nothing with Premium.
+func price_of(base: int) -> int:
+	return 0 if premium else base
+
+
+# -- Premium ----------------------------------------------------------------
+
+func set_premium(on: bool) -> void:
+	if premium == on:
+		return
+	premium = on
+	entitlements_changed.emit()
+	_request_save()
+	flush()   # a purchase is not something to lose to a crash within the next 1.5 s
+
+
+## Opens a Premium picture for good (after a rewarded video).
+func unlock_level(level_id: String) -> void:
+	if _unlocked.has(level_id):
+		return
+	_unlocked[level_id] = true
+	entitlements_changed.emit()
+	_request_save()
+	flush()
+
+
+func has_unlocked(level_id: String) -> bool:
+	return _unlocked.has(level_id)
 
 
 # -- days played / daily gift ---------------------------------------------------
@@ -270,6 +306,8 @@ func flush() -> void:
 			"show_numbers": show_numbers, "show_grid": show_grid, "language": language,
 		},
 		"coins": coins,
+		"premium": premium,
+		"unlocked": _unlocked.keys(),
 		"last_gift_day": last_gift_day,
 		"activity_days": activity_days,
 		"last_level_id": last_level_id,
@@ -300,6 +338,10 @@ func _load() -> void:
 	show_grid = s.get("show_grid", show_grid)
 	language = s.get("language", language)
 	coins = int(parsed.get("coins", coins))
+	premium = bool(parsed.get("premium", false))
+	_unlocked.clear()
+	for id in parsed.get("unlocked", []):
+		_unlocked[str(id)] = true
 	last_gift_day = str(parsed.get("last_gift_day", ""))
 	activity_days.clear()
 	for d in parsed.get("activity_days", []):

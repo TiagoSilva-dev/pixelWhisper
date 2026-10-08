@@ -40,6 +40,7 @@ func _ready() -> void:
 	pivot_offset = size * 0.5
 	resized.connect(func() -> void: pivot_offset = size * 0.5)
 	GameState.wallet_changed.connect(queue_redraw)
+	GameState.entitlements_changed.connect(queue_redraw)
 
 
 func _notification(what: int) -> void:
@@ -52,8 +53,9 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
+## Premium players use every power-up for free.
 func affordable() -> bool:
-	return GameState.coins >= cost
+	return GameState.coins >= GameState.price_of(cost)
 
 
 func _draw() -> void:
@@ -88,10 +90,15 @@ func _draw() -> void:
 	var cb := StyleBoxFlat.new()
 	cb.set_corner_radius_all(16)
 	cb.anti_aliasing = true
+	var pf := AppTheme.font(900)
+	if GameState.premium:
+		cb.bg_color = Color("dff5e5")
+		draw_style_box(cb, chip)
+		draw_string(pf, chip.position + Vector2(0, 24), tr("Free"), HORIZONTAL_ALIGNMENT_CENTER, chip.size.x, 26, AppTheme.GREEN.darkened(0.25))
+		return
 	cb.bg_color = AppTheme.SURFACE_DIM if affordable() else Color("ffe0e0")
 	draw_style_box(cb, chip)
 	Icons.draw(self, Icons.Kind.COIN, chip.position + Vector2(20, 16), 12.0)
-	var pf := AppTheme.font(900)
 	var price_col := AppTheme.INK if affordable() else AppTheme.RED
 	draw_string(pf, chip.position + Vector2(38, 24), str(cost), HORIZONTAL_ALIGNMENT_LEFT, -1, 26, price_col)
 

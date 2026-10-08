@@ -3,7 +3,7 @@
 Jogo de **colorir por números** em pixel art (Godot 4.7, renderer *Compatibility* / GLES3),
 com interface **clara e lúdica ("candy")** — papel creme, cartões brancos, cores vivas com "lábio" 3D —,
 moedas e poderes, feedback tátil e sonoro estilo ASMR e time-lapse da pintura.
-As 15 fases incluídas foram geradas com a **PixelLab** (64×64).
+As 34 fases incluídas foram geradas com a **PixelLab** (64×64): 15 cenários/ilustrações e 19 personagens "cute" (animais, anime e desenhos kawaii) com fundo transparente.
 
 ## Rodar
 
@@ -26,6 +26,7 @@ As 15 fases incluídas foram geradas com a **PixelLab** (64×64).
 | **Paleta automática** | Imagens da IA têm até ~57 tons. Quantização *median-cut* em **OKLab** + fusão de clusters minúsculos → ≤ 28 cores jogáveis sem cores de 1–2 células. |
 | **Portrait de verdade** | Só containers/âncoras; coluna "formato celular" centrada em janelas largas (web/desktop); área segura (notch); botão voltar do Android; i18n **en + pt-BR**. |
 | **Interface clara** | Fundo creme (`#FFFDF0`→`#F8F6EF`) desenhado uma vez (sem shader animado) · botões "candy" achatados com lábio mais escuro, brilho e *squish* ao toque · cartões com a imagem sobre cor viva e faixa colorida com título, progresso e nº de cores · carrossel de categorias · **5 abas fixas** (Início, Categorias, Diário, Loja, Perfil) com realce que desliza · ícones prontos de bibliotecas livres (Fluent Emoji 3D + Phosphor, ambas MIT, em `assets/icons/`; veja `ui/icons.gd`). Sem cópia de tela nem blur: custo de GPU baixo em celular fraco. |
+| **Anúncios e Premium** | Ao terminar cada pintura, um **anúncio em vídeo** entre o confete e a tela de vitória. Imagens com selo **Premium** ficam com cadeado: o jogador **assiste a um vídeo** (libera aquela imagem para sempre) ou **compra o pacote Premium** (compra única: todas as imagens, poderes grátis, sem anúncios). **Hoje tudo é simulado** (anúncio e compra falsos, nada é cobrado): o SDK real do Android ainda não está ligado — veja **[docs/MONETIZATION.md](docs/MONETIZATION.md)**. |
 | **Salvamento** | Progresso comprimido (≈100–300 B/fase), debounce, escrita atômica, flush ao pausar o app. |
 
 ## Estrutura de nós
@@ -46,7 +47,7 @@ HomeScreen (Control)                        scenes/Home.tscn · home_screen.gd  
    │    │       ScrollContainer → ContinueCard + GridContainer(2 col) → LevelCard…
    │    ├─ CategoriesPage (Categorias)      título · busca (LineEdit) · CategoryCard… (ou LevelCard… ao buscar)
    │    ├─ DiaryPage      (Diário)          calendário do mês (DayCell…) · sequência · "Em andamento" / "Concluídas"
-   │    ├─ ShopPage       (Loja)            presente diário · preço dos poderes · como ganhar moedas
+   │    ├─ ShopPage       (Loja)            card Premium (comprar / restaurar) · presente diário · preço dos poderes · como ganhar moedas
    │    └─ ProfilePage    (Perfil)          avatar · estatísticas · atalho para Ajustes
    └─ BottomNav (CandyPanel)                ui/bottom_nav.gd — 5 NavTab + realce que desliza
 
@@ -63,15 +64,16 @@ GameScreen (Control)                        scenes/Game.tscn · game_screen.gd
 │   └─ PaletteDock → PalettePanel (CandyPanel, base reta) → PaletteScroll → PaletteRow (PaletteSwatch…)
 └─ Confetti (ConfettiOverlay)               ui/confetti_overlay.gd — 3 emissores de confete + 3 de brilhos (GPUParticles2D), por cima de tudo
 
-Modais criados em runtime: SettingsModal, WinOverlay (herdam de ui/modal.gd: fundo escurecido + cartão branco)
+Modais criados em runtime: SettingsModal, WinOverlay, UnlockModal ("Imagem Premium": vídeo ou pacote) — herdam de ui/modal.gd: fundo escurecido + cartão branco.
+Telas falsas de anúncio/compra (MockAdScreen, MockPurchaseModal, em `monetization/`) vivem num CanvasLayer próprio, por cima de tudo.
 ```
 
-Autoloads (`project.godot`): `GameState` (ajustes, moedas, progresso, histórico do time-lapse, dias pintados) · `I18n` ·
-`Feedback` (áudio + vibração) · `PixelLabAPI` · `LevelLibrary`.
+Autoloads (`project.godot`): `GameState` (ajustes, moedas, **Premium e imagens liberadas**, progresso, histórico do time-lapse, dias pintados) · `I18n` ·
+`Feedback` (áudio + vibração) · `Ads` (anúncios) · `Store` (compra do Premium) · `PixelLabAPI` · `LevelLibrary`.
 
 Dados: `assets/levels/manifest.json` agora traz `category` (`animals` / `drawings` / `anime`) e as marcas `popular` / `premium`
-por imagem; `core/categories.gd` define as categorias (cor, ícone) e o filtro. "Anime" ainda não tem imagens (a tela mostra
-"em breve") e **"Premium" é só uma marca/emblema — não há cobrança**.
+por imagem; `core/categories.gd` define as categorias (cor, ícone) e o filtro. "Anime" tem 5 personagens chibi inspirados nos animes mais populares (nomes genéricos de propósito, veja abaixo) e
+**"Premium" bloqueia a imagem** até assistir a um vídeo ou comprar o pacote (hoje simulado, veja [docs/MONETIZATION.md](docs/MONETIZATION.md)). Uma categoria sem imagens mostra "em breve".
 
 Widgets (`ui/widgets/`): `CandyButton` (botão com ícone/texto, pílula ou quadrado), `CandyPanel` (cartão arredondado),
 `CandyProgress`, `CoinPill`, `GradientTitle` (logo), `PowerUpButton`, `ToggleSwitch`, `RoundedTexture`. Ícones: `Icons.draw()` (arquivos em `assets/icons/`, baixados por `tools/fetch_icons.py`; licenças em `assets/icons/LICENSES.md`).
@@ -133,6 +135,15 @@ PIXELLAB_BASE_URL=http://127.0.0.1:8787/v2 godot --path .
 Ou, com token real só na sua máquina: `PIXELLAB_API_TOKEN=...` ou `user://pixellab.cfg`
 (`[api] token="..."`; *Project → Open User Data Folder*).
 
+**Terceira especificação (anúncios e Premium):**
+
+| Pedido | Arquivo |
+|---|---|
+| Vídeo de anúncio ao finalizar cada pintura | `autoload/ads.gd` · `GameScreen._on_level_completed()` (uma linha: `await Ads.show_interstitial()`) |
+| Arte Premium: assistir a um vídeo **ou** comprar | `ui/unlock_modal.gd` · `LevelLibrary.is_locked()` · bloqueio em `HomeScreen._on_level_chosen()` · cadeado em `ui/level_card.gd` |
+| Pacote Premium: tudo ilimitado (imagens, poderes, sem anúncios) | `autoload/store.gd` · `GameState.premium` / `price_of()` · card na `ShopPage` |
+| SDK de anúncio / de compra trocáveis | `monetization/ad_provider.gd` · `store_provider.gd` (contratos) · `mock_*` (simulação) |
+
 ## Testes
 
 ```bash
@@ -143,7 +154,12 @@ Cobrem: compilação de todos os scripts/cenas/shaders · gerador e quantizador 
 gravador do time-lapse (empilhar, comprimir pausas, salvar/ler, reconciliar, 3–40 s a 10×), varinha (imagem inteira × só o
 que está na tela), bomba (quadrado 5×5, canto, armar/soltar), lupa (cor certa, zoom, célula centrada), replay sem tocar no
 progresso, vibração 25/100 ms, preços na tela de jogo, confete e recompensa na vitória · benchmark de CPU · testes de
-entrada (arrasto, toque rápido, pinça, pan, dedo remanescente, número errado, botão flutuante não pinta por baixo).
+entrada (arrasto, toque rápido, pinça, pan, dedo remanescente, número errado, botão flutuante não pinta por baixo) ·
+**`test_monetization.gd`**: Premium e liberações salvos e recarregados, quais imagens ficam bloqueadas, "Próxima imagem" que pula
+o bloqueio, regras do intersticial (nunca para Premium, nunca empilhado, pula se não há anúncio) e do vídeo premiado (só paga
+se assistido até o fim), resultados da compra (cancelada/falha/ok), loja autoritativa que revoga, **provedores falsos nunca num
+release de celular**, e os fluxos pela interface (imagem bloqueada → janela → vídeo/compra → imagem abre; anúncio antes da
+tela de vitória; poderes grátis com 0 moedas).
 `tools/tests/screenshot_tour.gd` percorre todas as abas, o jogo, os poderes, o time-lapse e a vitória (também em pt-BR)
 e salva PNGs de cada estado.
 
@@ -165,12 +181,14 @@ as variáveis `GODOT_ANDROID_KEYSTORE_RELEASE_PATH/_USER/_PASSWORD` — não gra
 
 ## Verificado × não verificado
 
-**Verificado:** todos os testes acima; fluxo completo com screenshots reais (as 5 abas → jogo → arrasto → varinha, bomba,
+**Verificado:** todos os testes acima (inclusive os fluxos de anúncio e Premium, com provedores falsos); fluxo completo com screenshots reais (as 5 abas → jogo → arrasto → varinha, bomba,
 lupa → ajustes → vitória com confete → time-lapse → diário/perfil, também em pt-BR); **build Web** exportado e aberto em
-Chromium/WebGL2 (categoria → carta → jogo → voltar → loja, sem erros de console); cliente de IA e
+Chromium/WebGL2 (categoria → carta → jogo → voltar → loja, e Premium → imagem bloqueada → janela → vídeo falso → imagem abre, sem erros de console); cliente de IA e
 proxy contra o mock; **APK Android de debug** gerado antes do redesenho (assinatura v2/v3 verificada, só a permissão `VIBRATE`) — não regerado depois.
 
 **Não verificado — faça antes de lançar:**
+- **Anúncios e compra de verdade:** só existem os provedores falsos. O AdMob e o Google Play Billing ainda não foram ligados nem testados
+  em aparelho (veja [docs/MONETIZATION.md](docs/MONETIZATION.md)); idem o comportamento offline e o "Restaurar compras" reais.
 - O timbre dos sons (Kalimba e Marimba sintetizados: conferi só que a fundamental cai exatamente em dó 262 Hz e a faixa de
   `pitch_scale`, mas ninguém ouviu) e a sensação da vibração de 25/100 ms.
 - Execução do APK em aparelho real, **execução em iOS** (só confirmei que o export gera um projeto Xcode válido, no
@@ -188,4 +206,7 @@ proxy contra o mock; **APK Android de debug** gerado antes do redesenho (assinat
   última linha de pixels de textos pequenos em escalas fracionárias.
 - Áudio: sintetizado por `tools/gen_audio.py` (sem licenças de terceiros). Depois de mexer nas receitas, rode
   `python3 tools/gen_audio.py` e reimporte no Godot.
-- Arte das 15 fases: gerada com PixelLab (sujeita aos [Termos](https://pixellab.ai/termsofservice)).
+- Arte das 34 fases: gerada com PixelLab (sujeita aos [Termos](https://pixellab.ai/termsofservice)).
+- Anime: os 5 personagens (Garoto Ninja, Capitão Pirata, Guerreiro das Esferas, Soldado das Asas, Caçador de Lâminas) são
+  chibis *inspirados* em séries muito assistidas, com títulos genéricos. Antes de publicar nas lojas, avalie o risco de
+  direitos autorais/marca (semelhança com personagens protegidos) ou troque por personagens originais.

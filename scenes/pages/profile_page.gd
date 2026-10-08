@@ -53,6 +53,27 @@ func _rebuild() -> void:
 	name_label.add_theme_font_size_override("font_size", 62)
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	who.add_child(name_label)
+	if GameState.premium:
+		var chip := CandyPanel.new(Color("efe5ff"), 40)
+		chip.border_color = Color("cdb8ff")
+		chip.shadow = 0
+		chip.padding = Vector4(22, 8, 30, 8)
+		chip.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		who.add_child(chip)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 12)
+		chip.add_child(row)
+		var gem := Control.new()
+		gem.custom_minimum_size = Vector2(46, 46)
+		gem.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		gem.draw.connect(func() -> void: Icons.draw(gem, Icons.Kind.DIAMOND, gem.size * 0.5, 20.0))
+		row.add_child(gem)
+		var tag := Label.new()
+		tag.text = "Premium member"
+		tag.add_theme_font_override("font", AppTheme.font(900))
+		tag.add_theme_font_size_override("font_size", 34)
+		tag.add_theme_color_override("font_color", AppTheme.PURPLE)
+		row.add_child(tag)
 
 	var grid := GridContainer.new()
 	grid.columns = 2

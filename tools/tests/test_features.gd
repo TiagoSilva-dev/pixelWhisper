@@ -27,6 +27,7 @@ func _run() -> void:
 	gs = root.get_node("GameState")
 	fb = root.get_node("Feedback")
 	lib = root.get_node("LevelLibrary")
+	root.get_node("Ads").provider.seconds = 0.0   # finishing a picture plays an ad: no fake ad screen here
 
 	_test_economy()
 	await _test_symphony()

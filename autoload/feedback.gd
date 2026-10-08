@@ -73,6 +73,12 @@ func _ready() -> void:
 	_apply_settings()
 
 
+## Holds the background music while a video ad plays (the ad brings its own sound).
+func pause_music(on: bool) -> void:
+	if _music:
+		_music.stream_paused = on
+
+
 func _load_stream(stream_name: String) -> AudioStream:
 	var path := "res://assets/audio/%s.wav" % stream_name
 	if ResourceLoader.exists(path):

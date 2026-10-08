@@ -25,18 +25,27 @@ func _init() -> void:
 			for x in img.get_width():
 				unique[img.get_pixel(x, y).to_rgba32()] = true
 
-		# Mean OKLab error between source and quantized picture.
+		# Mean OKLab error between source and quantized picture, over the opaque pixels. Pictures
+		# with a transparent background (the cute characters) have cells that are never painted;
+		# those must come out as EMPTY and are not part of the error.
 		var err := 0.0
+		var opaque := 0
+		var transparent_ok := true
 		for y in lvl.height:
 			for x in lvl.width:
-				err += PaletteQuantizer.to_oklab(img.get_pixel(x, y)).distance_to(
+				var src := img.get_pixel(x, y)
+				if src.a < LevelGenerator.ALPHA_CUTOFF:
+					transparent_ok = transparent_ok and lvl.cells[y * lvl.width + x] == PixelLevel.EMPTY
+					continue
+				opaque += 1
+				err += PaletteQuantizer.to_oklab(src).distance_to(
 						PaletteQuantizer.to_oklab(lvl.color_at(x, y)))
-		err /= float(lvl.cell_count())
+		err /= float(maxi(opaque, 1))
 
 		var sum := 0
 		for n in lvl.counts:
 			sum += n
-		var ok := sum == lvl.cell_count() and lvl.total_paintable == lvl.cell_count() \
+		var ok := sum == opaque and lvl.total_paintable == opaque and transparent_ok \
 				and lvl.palette.size() <= LevelGenerator.DEFAULT_MAX_COLORS \
 				and lvl.counts[lvl.counts.size() - 1] >= LevelGenerator.DEFAULT_MIN_CELLS  # sorted by frequency
 		if not ok:

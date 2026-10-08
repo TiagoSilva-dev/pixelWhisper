@@ -20,6 +20,7 @@ run "compile check (scripts, scenes, shaders)" "$GODOT" --headless --path . --sc
 run "level generator + quantizer"               "$GODOT" --headless --path . --script res://tools/tests/test_generator.gd
 run "audio note (bend range/throttle/voices)"    "$GODOT" --headless --path . --script res://tools/tests/test_audio.gd
 run "economy, symphony, power-ups, time-lapse"   "$GODOT" --headless --path . --script res://tools/tests/test_features.gd
+run "premium, ads, store, unlock flows"          "$GODOT" --headless --path . --script res://tools/tests/test_monetization.gd
 run "icons (files, sizes, clean edges)"          "$GODOT" --headless --path . --script res://tools/tests/test_icons.gd
 run "CPU benchmark"                             "$GODOT" --headless --path . --script res://tools/tests/bench_canvas.gd
 if [ -z "${SKIP_GUI:-}" ]; then

@@ -102,7 +102,26 @@ func _on_level_chosen(level_id: String) -> void:
 	var gallery: GalleryPage = _pages.get(&"home")
 	if gallery != null:
 		last_category = gallery.category
+	if LevelLibrary.is_locked(level_id):
+		_open_unlock(level_id)
+		return
 	level_chosen.emit(level_id)
+
+
+## A Premium picture the player does not own: offer the video / the pack, and open the picture
+## once either one works (after the dialog has faded out).
+func _open_unlock(level_id: String) -> void:
+	var level := LevelLibrary.get_level(level_id)
+	if level == null:
+		return
+	var m := UnlockModal.new()
+	_modal = m
+	add_child(m)
+	m.present(LevelLibrary.get_entry(level_id), level)
+	m.unlocked.connect(func(id: String) -> void:
+		await m.closed
+		if is_inside_tree():
+			level_chosen.emit(id))
 
 
 func _open_settings() -> void:

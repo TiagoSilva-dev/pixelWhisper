@@ -61,12 +61,19 @@ func index_of(level_id: String) -> int:
 	return -1
 
 
-## The entry after `level_id` that the player has not finished, wrapping around.
+## Is this a Premium picture the player has not opened yet (no Premium pack, no rewarded video)?
+func is_locked(level_id: String) -> bool:
+	var e := get_entry(level_id)
+	return e.get("premium", false) and not GameState.premium and not GameState.has_unlocked(level_id)
+
+
+## The entry after `level_id` that the player has not finished and can play, wrapping around.
+## Locked Premium pictures are skipped: "Next picture" must never land on a paywall.
 func next_unfinished(level_id: String) -> String:
 	var start := index_of(level_id)
 	for step in range(1, entries.size() + 1):
 		var e := entries[(start + step) % entries.size()]
-		if not GameState.is_completed(e.id):
+		if not GameState.is_completed(e.id) and not is_locked(e.id):
 			return e.id
 	return ""
 

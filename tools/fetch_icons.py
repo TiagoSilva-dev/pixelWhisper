@@ -51,6 +51,8 @@ COLOR = {
 	"gift": "assets/Wrapped gift/3D/wrapped_gift_3d.png",
 	"flame": "assets/Fire/3D/fire_3d.png",
 	"trophy": "assets/Trophy/3D/trophy_3d.png",
+	"lock": "assets/Locked/3D/locked_3d.png",
+	"clapper": "assets/Clapper board/3D/clapper_board_3d.png",
 }
 
 # local name -> (weight folder, file name) inside @phosphor-icons/core
