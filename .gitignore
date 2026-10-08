@@ -1,0 +1,9 @@
+.godot/
+*.translation
+export/
+.claude/
+.mcp.json
+*.keystore
+*.jks
+/android/
+build/

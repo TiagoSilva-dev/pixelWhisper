@@ -1,0 +1,179 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/game_screen.gd" id="1_game"]
+[ext_resource type="Script" path="res://game/canvas_view.gd" id="2_canvas"]
+[ext_resource type="Script" path="res://ui/widgets/icon_button.gd" id="3_icon"]
+[ext_resource type="Script" path="res://ui/widgets/glass_panel.gd" id="4_glass"]
+[ext_resource type="Script" path="res://ui/widgets/glass_progress.gd" id="5_progress"]
+
+[node name="GameScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_game")
+
+[node name="Layout" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="TopBar" type="MarginContainer" parent="Layout"]
+layout_mode = 2
+theme_override_constants/margin_left = 30
+theme_override_constants/margin_top = 30
+theme_override_constants/margin_right = 30
+theme_override_constants/margin_bottom = 14
+
+[node name="TopPanel" type="PanelContainer" parent="Layout/TopBar"]
+layout_mode = 2
+script = ExtResource("4_glass")
+padding = Vector4(20, 16, 20, 16)
+
+[node name="Row" type="HBoxContainer" parent="Layout/TopBar/TopPanel"]
+layout_mode = 2
+theme_override_constants/separation = 22
+
+[node name="BackButton" type="Control" parent="Layout/TopBar/TopPanel/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(108, 108)
+layout_mode = 2
+size_flags_vertical = 4
+script = ExtResource("3_icon")
+icon = 0
+
+[node name="TitleBox" type="VBoxContainer" parent="Layout/TopBar/TopPanel/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+theme_override_constants/separation = 10
+
+[node name="TitleLabel" type="Label" parent="Layout/TopBar/TopPanel/Row/TitleBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+text = "Title"
+clip_text = true
+text_overrun_behavior = 3
+
+[node name="ProgressRow" type="HBoxContainer" parent="Layout/TopBar/TopPanel/Row/TitleBox"]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="Progress" type="Control" parent="Layout/TopBar/TopPanel/Row/TitleBox/ProgressRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(40, 16)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+script = ExtResource("5_progress")
+
+[node name="Percent" type="Label" parent="Layout/TopBar/TopPanel/Row/TitleBox/ProgressRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+text = "0%"
+
+[node name="HintButton" type="Control" parent="Layout/TopBar/TopPanel/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(108, 108)
+layout_mode = 2
+size_flags_vertical = 4
+script = ExtResource("3_icon")
+icon = 1
+
+[node name="MenuButton" type="Control" parent="Layout/TopBar/TopPanel/Row"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(108, 108)
+layout_mode = 2
+size_flags_vertical = 4
+script = ExtResource("3_icon")
+icon = 4
+
+[node name="CanvasHolder" type="Control" parent="Layout"]
+clip_contents = true
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Canvas" type="Control" parent="Layout/CanvasHolder"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("2_canvas")
+
+[node name="Tools" type="MarginContainer" parent="Layout/CanvasHolder"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 38
+theme_override_constants/margin_top = 32
+theme_override_constants/margin_right = 38
+theme_override_constants/margin_bottom = 34
+
+[node name="ToolsRow" type="HBoxContainer" parent="Layout/CanvasHolder/Tools"]
+layout_mode = 2
+size_flags_vertical = 8
+mouse_filter = 2
+
+[node name="WandButton" type="Control" parent="Layout/CanvasHolder/Tools/ToolsRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(136, 136)
+layout_mode = 2
+script = ExtResource("3_icon")
+icon = 2
+
+[node name="Spacer" type="Control" parent="Layout/CanvasHolder/Tools/ToolsRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="FitButton" type="Control" parent="Layout/CanvasHolder/Tools/ToolsRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 120)
+layout_mode = 2
+size_flags_vertical = 8
+script = ExtResource("3_icon")
+icon = 3
+
+[node name="PaletteDock" type="MarginContainer" parent="Layout"]
+layout_mode = 2
+theme_override_constants/margin_left = 30
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 30
+theme_override_constants/margin_bottom = 30
+
+[node name="PalettePanel" type="PanelContainer" parent="Layout/PaletteDock"]
+layout_mode = 2
+script = ExtResource("4_glass")
+padding = Vector4(10, 26, 10, 20)
+
+[node name="PaletteScroll" type="ScrollContainer" parent="Layout/PaletteDock/PalettePanel"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 196)
+layout_mode = 2
+horizontal_scroll_mode = 3
+vertical_scroll_mode = 0
+
+[node name="PaletteInset" type="MarginContainer" parent="Layout/PaletteDock/PalettePanel/PaletteScroll"]
+layout_mode = 2
+theme_override_constants/margin_left = 22
+theme_override_constants/margin_right = 22
+
+[node name="PaletteRow" type="HBoxContainer" parent="Layout/PaletteDock/PalettePanel/PaletteScroll/PaletteInset"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 6

@@ -1,0 +1,62 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="PixelWhisper"
+config/description="Premium pixel art color-by-number with tactile ASMR feedback."
+run/main_scene="res://scenes/Main.tscn"
+run/max_fps=60
+config/quit_on_go_back=false
+config/features=PackedStringArray("4.7", "GL Compatibility")
+boot_splash/bg_color=Color(0.082, 0.071, 0.122, 1)
+boot_splash/show_image=false
+config/icon="res://icon.svg"
+
+[audio]
+
+buses/default_bus_layout=""
+
+[autoload]
+
+GameState="*res://autoload/game_state.gd"
+I18n="*res://autoload/i18n.gd"
+Feedback="*res://autoload/feedback.gd"
+PixelLabAPI="*res://autoload/pixellab_api.gd"
+LevelLibrary="*res://autoload/level_library.gd"
+
+[display]
+
+window/size/viewport_width=1080
+window/size/viewport_height=1920
+window/size/window_width_override=540
+window/size/window_height_override=960
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation=1
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=false
+pointing/emulate_mouse_from_touch=true
+
+[pixellab]
+
+; Base URL of the PixelLab API or of YOUR proxy (see server/README.md).
+; NEVER put the API token in this file or in any shipped build.
+base_url="https://api.pixellab.ai/v2"
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/canvas_textures/default_texture_filter=0
+textures/vram_compression/import_etc2_astc=true
+environment/defaults/default_clear_color=Color(0.082, 0.071, 0.122, 1)

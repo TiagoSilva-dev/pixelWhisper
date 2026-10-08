@@ -1,0 +1,19 @@
+{
+	"levels": [
+		{"id": "spring_bouquet", "title": "Spring Bouquet", "file": "spring_bouquet.png"},
+		{"id": "astronaut", "title": "Space Walk", "file": "astronaut.png"},
+		{"id": "balloon", "title": "Balloon Valley", "file": "balloon.png"},
+		{"id": "tropical_beach", "title": "Tiny Island", "file": "tropical_beach.png"},
+		{"id": "vintage_car", "title": "Vintage Car", "file": "vintage_car.png"},
+		{"id": "forest_river", "title": "Forest River", "file": "forest_river.png"},
+		{"id": "sunset_lake", "title": "Sunset Lake", "file": "sunset_lake.png"},
+		{"id": "berry_cake", "title": "Berry Cake", "file": "berry_cake.png"},
+		{"id": "parrot", "title": "Scarlet Macaw", "file": "parrot.png"},
+		{"id": "koi_pond", "title": "Koi Pond", "file": "koi_pond.png"},
+		{"id": "fox", "title": "Autumn Fox", "file": "fox.png"},
+		{"id": "cozy_cottage", "title": "Cozy Cottage", "file": "cozy_cottage.png"},
+		{"id": "flower_cat", "title": "Flower Crown Cat", "file": "flower_cat.png"},
+		{"id": "moon_owl", "title": "Moon Owl", "file": "moon_owl.png"},
+		{"id": "sea_turtle", "title": "Sea Turtle", "file": "sea_turtle.png"}
+	]
+}

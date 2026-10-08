@@ -1,0 +1,140 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/home_screen.gd" id="1_home"]
+[ext_resource type="Script" path="res://ui/widgets/glass_panel.gd" id="2_glass"]
+[ext_resource type="Script" path="res://ui/widgets/icon_button.gd" id="3_icon"]
+[ext_resource type="Script" path="res://ui/widgets/glow_label.gd" id="4_glow"]
+[ext_resource type="Script" path="res://ui/widgets/glass_segmented.gd" id="5_seg"]
+
+[node name="HomeScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_home")
+
+[node name="Scroll" type="ScrollContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 3
+
+[node name="ScrollMargin" type="MarginContainer" parent="Scroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/margin_left = 44
+theme_override_constants/margin_top = 420
+theme_override_constants/margin_right = 44
+theme_override_constants/margin_bottom = 260
+
+[node name="ScrollContent" type="VBoxContainer" parent="Scroll/ScrollMargin"]
+layout_mode = 2
+theme_override_constants/separation = 34
+
+[node name="ContinueHolder" type="VBoxContainer" parent="Scroll/ScrollMargin/ScrollContent"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Grid" type="GridContainer" parent="Scroll/ScrollMargin/ScrollContent"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/h_separation = 30
+theme_override_constants/v_separation = 30
+columns = 2
+
+[node name="BlurCopy" type="BackBufferCopy" parent="."]
+copy_mode = 2
+
+[node name="HeaderBlock" type="MarginContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+grow_horizontal = 2
+theme_override_constants/margin_left = 30
+theme_override_constants/margin_top = 30
+theme_override_constants/margin_right = 30
+
+[node name="HeaderColumn" type="VBoxContainer" parent="HeaderBlock"]
+layout_mode = 2
+theme_override_constants/separation = 26
+
+[node name="HeaderPanel" type="PanelContainer" parent="HeaderBlock/HeaderColumn"]
+layout_mode = 2
+script = ExtResource("2_glass")
+blur = true
+padding = Vector4(38, 28, 26, 28)
+
+[node name="HeaderRow" type="HBoxContainer" parent="HeaderBlock/HeaderColumn/HeaderPanel"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="TitleBox" type="VBoxContainer" parent="HeaderBlock/HeaderColumn/HeaderPanel/HeaderRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+theme_override_constants/separation = 6
+
+[node name="Logo" type="Control" parent="HeaderBlock/HeaderColumn/HeaderPanel/HeaderRow/TitleBox"]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("4_glow")
+text = "PixelWhisper"
+font_size = 82
+
+[node name="SubChip" type="PanelContainer" parent="HeaderBlock/HeaderColumn/HeaderPanel/HeaderRow/TitleBox"]
+layout_mode = 2
+size_flags_horizontal = 0
+script = ExtResource("2_glass")
+style = 3
+padding = Vector4(20, 6, 20, 6)
+
+[node name="SubLabel" type="Label" parent="HeaderBlock/HeaderColumn/HeaderPanel/HeaderRow/TitleBox/SubChip"]
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+text = "Your gallery"
+
+[node name="CoinButton" type="Control" parent="HeaderBlock/HeaderColumn/HeaderPanel/HeaderRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(128, 128)
+layout_mode = 2
+size_flags_vertical = 4
+script = ExtResource("3_icon")
+icon = 13
+
+[node name="SettingsButton" type="Control" parent="HeaderBlock/HeaderColumn/HeaderPanel/HeaderRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(128, 128)
+layout_mode = 2
+size_flags_vertical = 4
+script = ExtResource("3_icon")
+icon = 4
+
+[node name="FilterRow" type="HBoxContainer" parent="HeaderBlock/HeaderColumn"]
+layout_mode = 2
+
+[node name="Filters" type="Control" parent="HeaderBlock/HeaderColumn/FilterRow"]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("5_seg")
+
+[node name="HintHolder" type="CenterContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -210.0
+offset_bottom = -60.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
