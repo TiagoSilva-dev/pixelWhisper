@@ -124,7 +124,7 @@ animando 0,11 ms/frame · carregar uma fase 3,7 ms · salvar progresso 0,03 ms.
 ## Exportar
 
 `export_presets.cfg` traz **Web** (sem threads, PWA retrato), **Android** (arm64, retrato, permissão `VIBRATE`) e
-**iOS** (projeto Xcode, retrato, iOS 14+). Para iOS veja **[docs/IOS.md](docs/IOS.md)**: o Godot gera o projeto e o
+**iOS** (projeto Xcode, retrato, iOS 15+). Para iOS veja **[docs/IOS.md](docs/IOS.md)**: o Godot gera o projeto e o
 Xcode, no Mac, compila e instala; o *Team ID* do preset fica vazio de propósito (é seu).
 
 ```bash

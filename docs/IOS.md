@@ -2,7 +2,7 @@
 
 O Godot **gera o projeto Xcode** e o Xcode compila e instala no aparelho. O `.ipa` só pode ser montado em macOS,
 por isso o passo final é sempre no Mac. O preset **iOS** já está em `export_presets.cfg`
-(retrato, iOS 14+, arm64, `com.pixelwhisper.game`). Validei no Linux que o export gera um projeto Xcode correto
+(retrato, iOS 15+, arm64, `com.pixelwhisper.game`). Validei no Linux que o export gera um projeto Xcode correto
 (bundle id, retrato, ícones a partir do `icon.svg`), mas **ainda não rodei em nenhum iPhone/simulador**.
 
 ## O que você precisa
@@ -74,6 +74,13 @@ Abra a pasta no Godot (*Import* → `project.godot`) e espere a importação ter
 - **Vibração:** `Input.vibrate_handheld(30)` deve dar um toque háptico no iPhone (não existe em iPad nem no simulador).
 - **Entalhe / Dynamic Island:** a UI usa a área segura do sistema; confira o cabeçalho e a paleta inferior.
 - **Fluidez do blur de vidro:** em *Ajustes → Efeitos de vidro* dá para desligar; compare o FPS nos dois modos.
+
+## Erros conhecidos
+
+- **"IPHONEOS_DEPLOYMENT_TARGET is set to 14.0, but the range of supported deployment target versions is 15.0 to …"**:
+  o seu Xcode não aceita iOS 14. No Godot, *Project → Export → iOS → Application → Min iOS Version* = `15.0`
+  (ou a versão mínima que a mensagem indicar) e **exporte de novo**. O Xcode só lê o que o Godot gerou, então
+  mudar o número dentro do Xcode é desfeito no próximo export.
 
 ## Publicar (TestFlight / App Store)
 
